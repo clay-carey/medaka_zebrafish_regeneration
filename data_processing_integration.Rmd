@@ -10,7 +10,239 @@ load required packages
 library(dplyr)
 library(Seurat)
 ```
+Import data from cellranger outputs 
+```{r}
+#Import single-cell data from cellranger outputs for each experiment
+zf.uninj.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_1')
+zf.uninj.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_2')
+zf.uninj.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_3')
+zf.uninj.4.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_4')
+
+md.uninj.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_1')
+md.uninj.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_2')
+md.uninj.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_3')
+md.uninj.4.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_4')
+
+zf.3dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_3dpi_1')
+zf.3dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_3dpi_2')
+zf.3dpi.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_3dpi_3')
+
+md.3dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_3dpi_1')
+md.3dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_3dpi_2')
+md.3dpi.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_3dpi_3')
+
+zf.14dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_1')
+zf.14dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_2')
+zf.14dpi.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_3')
+zf.14dpi.4.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_4')
+zf.14dpi.5.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_5')
+zf.14dpi.6.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_6')
+
+md.14dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_14dpi_1')
+md.14dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_14dpi_2')
+```
+
+
+Create seurat objects and add metadata to each object 
 ```{r}
 
+zf.uninj.1 <- CreateSeuratObject(counts = zf.uninj.1.data)
+zf.uninj.1$species <- "zebrafish"
+zf.uninj.1$injury <- "uninjured"
+zf.uninj.1$group <- "zebrafish_uninjured"
+zf.uninj.1$sample <- "zebrafish_uninjured_1"
+rm(zf.uninj.1.data)
+
+zf.uninj.2 <- CreateSeuratObject(counts = zf.uninj.2.data)
+zf.uninj.2$species <- "zebrafish"
+zf.uninj.2$injury <- "uninjured"
+zf.uninj.2$group <- "zebrafish_uninjured"
+zf.uninj.2$sample <- "zebrafish_uninjured_2"
+rm(zf.uninj.2.data)
+
+zf.uninj.3 <- CreateSeuratObject(counts = zf.uninj.3.data)
+zf.uninj.3$species <- "zebrafish"
+zf.uninj.3$injury <- "uninjured"
+zf.uninj.3$group <- "zebrafish_uninjured"
+zf.uninj.3$sample <- "zebrafish_uninjured_3"
+rm(zf.uninj.3.data)
+
+zf.uninj.4 <- CreateSeuratObject(counts = zf.uninj.4.data)
+zf.uninj.4$species <- "zebrafish"
+zf.uninj.4$injury <- "uninjured"
+zf.uninj.4$group <- "zebrafish_uninjured"
+zf.uninj.4$sample <- "zebrafish_uninjured_4"
+rm(zf.uninj.4.data)
+
+md.uninj.1 <- CreateSeuratObject(counts = md.uninj.1.data)
+md.uninj.1$species <- "medaka"
+md.uninj.1$injury <- "uninjured"
+md.uninj.1$group <- "medaka_uninjured"
+md.uninj.1$sample <- "medaka_uninjured_1"
+rm(md.uninj.1.data)
+
+md.uninj.2 <- CreateSeuratObject(counts = md.uninj.2.data)
+md.uninj.2$species <- "medaka"
+md.uninj.2$injury <- "uninjured"
+md.uninj.2$group <- "medaka_uninjured"
+md.uninj.2$sample <- "medaka_uninjured_2"
+rm(md.uninj.2.data)
+
+md.uninj.3 <- CreateSeuratObject(counts = md.uninj.3.data)
+md.uninj.3$species <- "medaka"
+md.uninj.3$injury <- "uninjured"
+md.uninj.3$group <- "medaka_uninjured"
+md.uninj.3$sample <- "medaka_uninjured_3"
+rm(md.uninj.3.data)
+
+md.uninj.4 <- CreateSeuratObject(counts = md.uninj.4.data)
+md.uninj.4$species <- "medaka"
+md.uninj.4$injury <- "uninjured"
+md.uninj.4$group <- "medaka_uninjured"
+md.uninj.4$sample <- "medaka_uninjured_4"
+rm(md.uninj.4.data)
+
+zf.3dpi.1 <- CreateSeuratObject(counts = zf.3dpi.1.data)
+zf.3dpi.1$species <- "zebrafish"
+zf.3dpi.1$injury <- "3dpi"
+zf.3dpi.1$group <- "zebrafish_3dpi"
+zf.3dpi.1$sample <- "zebrafish_3dpi_1"
+rm(zf.3dpi.1.data)
+
+zf.3dpi.2 <- CreateSeuratObject(counts = zf.3dpi.2.data)
+zf.3dpi.2$species <- "zebrafish"
+zf.3dpi.2$injury <- "3dpi"
+zf.3dpi.2$group <- "zebrafish_3dpi"
+zf.3dpi.2$sample <- "zebrafish_3dpi_2"
+rm(zf.3dpi.2.data)
+
+zf.3dpi.3 <- CreateSeuratObject(counts = zf.3dpi.3.data)
+zf.3dpi.3$species <- "zebrafish"
+zf.3dpi.3$injury <- "3dpi"
+zf.3dpi.3$group <- "zebrafish_3dpi"
+zf.3dpi.3$sample <- "zebrafish_3dpi_3"
+rm(zf.3dpi.3.data)
+
+md.3dpi.1 <- CreateSeuratObject(counts = md.3dpi.1.data)
+md.3dpi.1$species <- "medaka"
+md.3dpi.1$injury <- "3dpi"
+md.3dpi.1$group <- "medaka_3dpi"
+md.3dpi.1$sample <- "medaka_3dpi_1"
+rm(md.3dpi.1.data)
+
+md.3dpi.2 <- CreateSeuratObject(counts = md.3dpi.2.data)
+md.3dpi.2$species <- "medaka"
+md.3dpi.2$injury <- "3dpi"
+md.3dpi.2$group <- "medaka_3dpi"
+md.3dpi.2$sample <- "medaka_3dpi_2"
+rm(md.3dpi.2.data)
+
+md.3dpi.3 <- CreateSeuratObject(counts = md.3dpi.3.data)
+md.3dpi.3$species <- "medaka"
+md.3dpi.3$injury <- "3dpi"
+md.3dpi.3$group <- "medaka_3dpi"
+md.3dpi.3$sample <- "medaka_3dpi_3"
+rm(md.3dpi.3.data)
+
+zf.14dpi.1 <- CreateSeuratObject(counts = zf.14dpi.1.data)
+zf.14dpi.1$species <- "zebrafish"
+zf.14dpi.1$injury <- "14dpi"
+zf.14dpi.1$group <- "zebrafish_14dpi"
+zf.14dpi.1$sample <- "zebrafish_14dpi_1"
+rm(zf.14dpi.1.data)
+
+zf.14dpi.2 <- CreateSeuratObject(counts = zf.14dpi.2.data)
+zf.14dpi.2$species <- "zebrafish"
+zf.14dpi.2$injury <- "14dpi"
+zf.14dpi.2$group <- "zebrafish_14dpi"
+zf.14dpi.2$sample <- "zebrafish_14dpi_2"
+rm(zf.14dpi.2.data)
+
+zf.14dpi.3 <- CreateSeuratObject(counts = zf.14dpi.3.data)
+zf.14dpi.3$species <- "zebrafish"
+zf.14dpi.3$injury <- "14dpi"
+zf.14dpi.3$group <- "zebrafish_14dpi"
+zf.14dpi.3$sample <- "zebrafish_14dpi_3"
+rm(zf.14dpi.3.data)
+
+zf.14dpi.4 <- CreateSeuratObject(counts = zf.14dpi.4.data)
+zf.14dpi.4$species <- "zebrafish"
+zf.14dpi.4$injury <- "14dpi"
+zf.14dpi.4$group <- "zebrafish_14dpi"
+zf.14dpi.4$sample <- "zebrafish_14dpi_4"
+rm(zf.14dpi.4.data)
+
+zf.14dpi.5 <- CreateSeuratObject(counts = zf.14dpi.5.data)
+zf.14dpi.5$species <- "zebrafish"
+zf.14dpi.5$injury <- "14dpi"
+zf.14dpi.5$group <- "zebrafish_14dpi"
+zf.14dpi.5$sample <- "zebrafish_14dpi_5"
+rm(zf.14dpi.5.data)
+
+zf.14dpi.6 <- CreateSeuratObject(counts = zf.14dpi.6.data)
+zf.14dpi.6$species <- "zebrafish"
+zf.14dpi.6$injury <- "14dpi"
+zf.14dpi.6$group <- "zebrafish_14dpi"
+zf.14dpi.6$sample <- "zebrafish_14dpi_6"
+rm(zf.14dpi.6.data)
+
+md.14dpi.1 <- CreateSeuratObject(counts = md.14dpi.1.data)
+md.14dpi.1$species <- "medaka"
+md.14dpi.1$injury <- "14dpi"
+md.14dpi.1$group <- "medaka_14dpi"
+md.14dpi.1$sample <- "medaka_14dpi_1"
+rm(md.14dpi.1.data)
+
+md.14dpi.2 <- CreateSeuratObject(counts = md.14dpi.2.data)
+md.14dpi.2$species <- "medaka"
+md.14dpi.2$injury <- "14dpi"
+md.14dpi.2$group <- "medaka_14dpi"
+md.14dpi.2$sample <- "medaka_14dpi_2"
+rm(md.14dpi.2.data)
+
+```
+
+calculate percent mitochondrial RNA for each object, filter cells mostly composed of mitochondrial RNAs. 
+```{r}
+obj.list <- list(zf.uninj.1,zf.uninj.2,zf.uninj.3,zf.uninj.4,zf.3dpi.1,zf.3dpi.2,zf.3dpi.3,zf.14dpi.1,zf.14dpi.2,zf.14dpi.3,zf.14dpi.4,zf.14dpi.5,zf.14dpi.6,md.uninj.1,md.uninj.2,md.uninj.3,md.uninj.4,md.3dpi.1,md.3dpi.2,md.3dpi.3,md.14dpi.1,md.14dpi.2)
+
+for (i in 1:13){
+  obj.list[[i]] <- PercentageFeatureSet(obj.list[[i]], pattern = "^mt-", col.name = "percent.mt")
+}
+
+##mitochondrial genes not included in original medaka annotation, added chromosome mt to assign reads as mitochondrial RNA
+for (i in 14:22){
+  obj.list[[i]] <- PercentageFeatureSet(obj.list[[i]], features= "mt", col.name = "percent.mt")
+}
+
+for (i in 1:22){
+  obj.list[[i]] <- subset(obj.list[[i]], subset = percent.mt < 40 & nFeature_RNA > 200)
+}
+```
+
+save file for import to CHPC
+```{r}
+saveRDS(obj.list, file = '/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/heart_obj.rds')
+```
+
+
+The following code was executed on the utah CHPC cluster to normalize and integrate the datasets quickly. 
+```{r}
+library(Seurat)
+
+heart_obj <- readRDS(file = 'heart_obj.rds')
+
+heart_obj <- lapply(X = heart_obj, FUN = function(x) {
+  x <- NormalizeData(x)
+  x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+})
+
+features <- SelectIntegrationFeatures(object.list = heart_obj)
+
+heart.anchors <- FindIntegrationAnchors(object.list = heart_obj, anchor.features = features)
+
+heart.integrated <- IntegrateData(anchorset = heart.anchors)
+
+saveRDS(heart.integrated, file = 'heart_integrated.rds')
 ```
 
