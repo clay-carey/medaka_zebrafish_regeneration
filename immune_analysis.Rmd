@@ -1,0 +1,287 @@
+---
+title: "Immune Analysis"
+author: "Clay Carey"
+date: "2023-02-02"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(Seurat)
+library(dittoSeq)
+library(Nebulosa)
+library(dplyr)
+filt.int3 <- readRDS(file = '/Users/claytoncarey/Documents/Seurat/zf_md_combined.rds')
+```
+
+```{r}
+Idents(filt.int3) <- "seurat_clusters"
+colors <- c("#8dd3c7", "#ffffb3", "#a6cee3", "#fb8072", "#80b1d3", "#fdb462", "#b3de69", "#fccde5", "#d9d9d9", "#bc80bd", "#ccebc5", "#ffed6f", "#8b8b8b", "#8dd3c7", "#9b59b6", "#bebada", "#fb8072", "#80b1d3")
+DimPlot(filt.int3, group.by = 'seurat_clusters', cols = colors, label = TRUE)
+```
+
+```{r}
+library(gridExtra)
+
+filt.ditto <- filt.int3
+
+##factor object to reorder x axis 
+my_levels <- c("zebrafish_uninjured","zebrafish_3dpi","zebrafish_14dpi","medaka_uninjured","medaka_3dpi","medaka_14dpi")
+
+filt.ditto@meta.data$group <- factor(x = filt.ditto@meta.data$group, levels = my_levels)
+
+##Define color palette 
+ditto_color <- c("#61A2DE","#61A2DE","#61A2DE","#D39234","#D39234","#D39234")
+
+#plot frequency of each major immune type
+p1 <- dittoFreqPlot(filt.ditto, "cell_type", sample.by = 'sample', group.by = 'group', vars.use = "T lymphocyte", color.panel = ditto_color) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank())
+
+p2 <- dittoFreqPlot(filt.ditto, "cell_type", sample.by = 'sample', group.by = 'group', vars.use = "B lymphocyte", color.panel = ditto_color) + NoLegend() + theme(axis.title.y=element_blank()) +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank())
+
+p3 <- dittoFreqPlot(filt.ditto, "cell_type", sample.by = 'sample', group.by = 'group', vars.use = "Macrophage", color.panel = ditto_color) + NoLegend()+  theme(axis.title.y=element_blank()) +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank())
+
+p4 <- dittoFreqPlot(filt.ditto, "cell_type", sample.by = 'sample', group.by = 'group', vars.use = "Granulocyte", color.panel = ditto_color) +  theme(axis.title.y=element_blank()) +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) +NoLegend()
+
+grid.arrange(p1,p2,p3,p4, nrow = 1, ncol = 4)
+
+rm(filt.ditto)
+```
+
+
+
+
+
+
+```{r}
+Idents(filt.int3) <- "seurat_clusters"
+filt3.immune <- subset(filt.int3, idents = c(4,5,9,11,13))
+
+immune.colors <- c("#8dd3c7", "#ffffb3", "#a6cee3", "#fb8072", "#80b1d3", "#fdb462", "#b3de69", "#fccde5", "#d9d9d9", "#bc80bd", "#ccebc5", "#ffed6f", "#8b8b8b","#9b59b6")
+
+DefaultAssay(filt3.immune) <- "integrated"
+
+filt3.immune <- FindVariableFeatures(filt3.immune)
+all.genes <- rownames(filt3.immune)
+filt3.immune <- ScaleData(filt3.immune, features = all.genes)
+filt3.immune <- RunPCA(filt3.immune, npcs = 30, features = VariableFeatures(object = filt3.immune))
+filt3.immune <- FindNeighbors(filt3.immune, dims = 1:25, n.trees = 50)
+filt3.immune <- FindClusters(filt3.immune, resolution = 0.3, algorithm = 2, method = 'igraph')
+filt3.immune <- RunUMAP(filt3.immune, dims = 1:25, min.dist = 0.1, n.epochs = 500, local.connectivity = 20)
+
+DimPlot(filt3.immune, label = FALSE, cols = immune.colors, pt.size = 0.3) + NoLegend() +NoAxes()
+DimPlot(filt3.immune,  cols = immune.colors, group.by = 'group', pt.size = 1)
+
+```
+```{r}
+dittoDimPlot(filt3.immune, 'group', split.by = 'group')
+```
+
+```{r}
+dittoFreqPlot(filt3.immune, "seurat_clusters", sample.by = 'sample', group.by = 'group', vars.use = "0", color.panel = ditto_color) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank())
+
+dittoFreqPlot(filt3.immune, "seurat_clusters", sample.by = 'sample', group.by = 'group', vars.use = "2", color.panel = ditto_color) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank())
+```
+
+```{r}
+
+DefaultAssay(filt3.immune) <- "RNA"
+immune.markers <- FindAllMarkers(filt3.immune, only.pos = TRUE)
+write.csv(immune.markers, file = 'immune.marksers.csv')
+FeaturePlot(filt3.immune, features = c('mpeg1.1',"MPEG1",'csf1ra','cd79a','cd79b','lck','mpx','lyz'))
+FeaturePlot(filt3.immune, features = 'nr4a1')
+FeaturePlot(filt3.immune, features = c('nkl.1','nkl.2','nkl.3','nkl.4','nitr1a','nitr1b','nitr1c','nitr1d','nitr1f','gata3'))
+FeaturePlot(filt3.immune, features = 'tnfa', split.by = 'species')
+VlnPlot(filt3.immune, features = 'cd8b', split.by = 'group', idents = c(4,1,7))
+```
+
+```{r}
+
+my_levels <- c("zebrafish_uninjured","zebrafish_3dpi","zebrafish_14dpi","medaka_uninjured","medaka_3dpi","medaka_14dpi")
+
+filt3.immune@meta.data$group <- factor(x = filt3.immune@meta.data$group, levels = my_levels)
+anti_inflam <- c("cd9b",'atf3','stat6')
+pro_infla <- c('tnfa','tgfb1a','nfkb2')
+all_inflam <- c(anti_inflam,pro_infla)
+
+inflamm <- c("tnfa","il1b","nfkb1","nfkb2",'il10','tgfb1a','cxcl11.1','il6','atf3','arg2','il10ra','il10rb','nos2b','ccr2','cxcr4b','tnfb')
+select_marker <- c('tnfa','atf3','tgfb1a')
+
+vln_color <- c("#55DFD4","#69D5F8","#5192DC","#F7BC6D","#FCDA61","#FA8961")
+
+
+DefaultAssay(filt3.immune) <- "RNA"
+VlnPlot(filt3.immune, features = 'nfkb2', split.by = 'group', idents = 0, cols = vln_color)
+VlnPlot(filt3.immune, features =  inflamm, flip = TRUE, stack = TRUE, split.by = 'group', idents = c(0,2,6))
+VlnPlot(filt3.immune, features = all_inflam, flip = TRUE, stack = TRUE, split.by = 'group', idents = 0, cols = vln_color)
+
+VlnPlot(filt3.immune, features = 'tnfa', split.by = 'group', idents = c(0,2,6,11))
+
+```
+let's try identifying markers that went up in macrophages at dpi
+```{r}
+macro0 <- subset(filt3.immune, idents = 0)
+Idents(macro0) <- "injury"
+macro_up <- FindMarkers(macro0, ident.1 = "3dpi", ident.2 = 'uninjured', only.pos = TRUE)
+macro_up
+```
+let's do the same for t cells 
+```{r}
+tcells <- subset(filt3.immune, idents = c(1,4,7))
+Idents(tcells) <- "injury"
+tcells_up <- FindMarkers(tcells, ident.1 = "3dpi", ident.2 = 'uninjured', only.pos = TRUE)
+tcells_up
+```
+
+```{r}
+##First I need to make an object for each cluster and set the idents to group
+macro0 <- subset(filt3.immune, idents = 0)
+Idents(macro0) <- "group"
+macro2 <- subset(filt3.immune, idents = 2)
+Idents(macro2) <- "group"
+macro6 <- subset(filt3.immune, idents = 6)
+Idents(macro6) <- "group"
+macro11 <- subset(filt3.immune, idents = 11)
+Idents(macro11) <- "group"
+
+##now make an average expression object from each seaurat object with the inflammatory genes of interest
+avg0 <- AverageExpression(macro0, assays = 'RNA', features = inflamm )
+avg0 <- as.data.frame(avg0$RNA)
+avg2 <- AverageExpression(macro2, assays = 'RNA', features = inflamm )
+avg2 <- as.data.frame(avg2$RNA)
+
+Idents(filt3.immune) <- "group"
+
+macro.avg <- AverageExpression(macro, features = inflamm)
+
+pheatmap(avg0)
+pheatmap(avg2)
+```
+
+```{r}
+immune.markers <- FindAllMarkers(filt3.immune, only.pos = TRUE)
+```
+```{r}
+DefaultAssay(filt3.immune) <- "RNA"
+FeaturePlot(filt3.immune, features = c('lck','csf1ra','MPEG1','mpeg1.1'))
+```
+
+```{r}
+library(clusterProfiler)
+library(org.Dr.eg.db)
+library(AnnotationHub)
+top100 <- immune.markers %>% group_by(cluster) %>% top_n(n = 100, wt = avg_log2FC)
+top100pval <- subset(top100, rowSums(top100[5] < 0.05) > 0)
+top100pval
+df <- top100pval[,7:6]
+dfsample <- split(df$gene,df$cluster)
+length(dfsample)
+dfsample$`0` = bitr(dfsample$`0`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`1` = bitr(dfsample$`1`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`2` = bitr(dfsample$`2`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`3` = bitr(dfsample$`3`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`4` = bitr(dfsample$`4`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`5` = bitr(dfsample$`5`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`6` = bitr(dfsample$`6`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`7` = bitr(dfsample$`7`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`8` = bitr(dfsample$`8`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`9` = bitr(dfsample$`9`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`10` = bitr(dfsample$`10`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`11` = bitr(dfsample$`11`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`12` = bitr(dfsample$`12`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`13` = bitr(dfsample$`13`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+
+genelist <- list("0" = dfsample$`0`$ENTREZID, 
+                 "1" = dfsample$`1`$ENTREZID,
+                 "2" = dfsample$`2`$ENTREZID,
+                 "3" = dfsample$`3`$ENTREZID,
+                 "4" = dfsample$`4`$ENTREZID,
+                 "5" = dfsample$`5`$ENTREZID,
+                 "6" = dfsample$`6`$ENTREZID,
+                 "7" = dfsample$`7`$ENTREZID,
+                 "8" = dfsample$`8`$ENTREZID,
+                 "9" = dfsample$`9`$ENTREZID,
+                 "10" = dfsample$`10`$ENTREZID,
+                 "11" = dfsample$`11`$ENTREZID,
+                 "12" = dfsample$`12`$ENTREZID,
+                 "13" = dfsample$`13`$ENTREZID
+
+)
+GOclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichGO", OrgDb = "org.Dr.eg.db")
+dotplot(GOclusterplot)
+KEGGclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichKEGG", organism = "zebrafish")
+dotplot(KEGGclusterplot)
+Pathwayclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichPathway", organism = "zebrafish")
+dotplot(Pathwayclusterplot)
+GOclusterplot@compareClusterResult
+```
+```{r}
+macro <- subset(filt3.immune, idents = c(0,2,6))
+macrophagemarkers <- FindAllMarkers(macro, only.pos = TRUE)
+```
+```{r}
+top200 <- macrophagemarkers %>% group_by(cluster) %>% top_n(n = 200, wt = avg_log2FC)
+top200pval <- subset(top200, rowSums(top200[5] < 0.05) > 0)
+top200pval
+df <- top200pval[,7:6]
+dfsample <- split(df$gene,df$cluster)
+length(dfsample)
+dfsample$`0` = bitr(dfsample$`0`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`2` = bitr(dfsample$`2`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`6` = bitr(dfsample$`6`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+
+
+genelist <- list("0" = dfsample$`0`$ENTREZID, 
+                 "2" = dfsample$`2`$ENTREZID,
+                 "6" = dfsample$`6`$ENTREZID
+)
+GOclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichGO", OrgDb = "org.Dr.eg.db")
+dotplot(GOclusterplot)
+KEGGclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichKEGG", organism = "zebrafish")
+dotplot(KEGGclusterplot)
+Pathwayclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichPathway", organism = "zebrafish")
+dotplot(Pathwayclusterplot)
+GOclusterplot@compareClusterResult
+```
+
+```{r}
+FeaturePlot(filt.int3, features = "nfkb1")
+FeaturePlot(filt.int3, features = "nfkb2")
+VlnPlot(filt.int3, features = 'nfkb2', idents = 3, split.by = 'group')
+VlnPlot(filt.int3, features = 'nfkb1', idents = 3, split.by = 'group')
+```
+function that retrieves cell IDs from specified cell cluster c in subclustered seurat object x, then adds specified label y as new metadata slot in old seurat object z 
+```{r}
+trace_subcluster <- function(x,c,y) {
+  ##retrieve cell IDs of specified cluster, create 2 column dataframe with cell_ids and subcluster id 
+  x_meta <- x@meta.data
+  x_meta$cell_id <- row.names(x_meta)
+  x_meta <- x_meta %>% filter(seurat_clusters == c) %>% rename("sub_clusters" = "seurat_clusters")
+  x_df <- select(x_meta, sub_clusters, cell_id)
+  print(x_df)
+  
+  y_meta <- y@meta.data
+  y_meta$cell_id <- row.names(y_meta)
+  print(y_meta)
+  xy_meta <- left_join(y_meta, x_df, by = 'cell_id')
+  row.names(xy_meta) <- xy_meta$cell_id
+  return(xy_meta)
+}
+
+trace_meta <- trace_subcluster(filt3.immune, 0, filt.int3)
+
+filt.int3@meta.data <- trace_meta
+
+trace_meta
+```
+
+now we can trace the changes in abundance to the cell clusters in the original object 
+```{r}
+dittoFreqPlot(filt.int3, "sub_clusters", sample.by = 'sample', group.by = 'group', vars.use = "0", color.panel = ditto_color) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank())
+```
+
+
+```{r}
+head(filt.int3)
+head(filt3.immune)
+```
+
