@@ -298,3 +298,30 @@ DimPlot(heart_filtered, label = TRUE)
 saveRDS(heart_filtered, file = "heart_filtered.rds")
 ```
 
+TEMP CLUSTERING CODE 
+```{r}
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:30)
+DimPlot(heart_filtered, label = TRUE) + NoLegend()
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:29)
+DimPlot(heart_filtered, label = TRUE) + NoLegend()
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:28)
+DimPlot(heart_filtered, label = TRUE) + NoLegend()
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:27)
+DimPlot(heart_filtered, label = TRUE) + NoLegend()
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:26)
+DimPlot(heart_filtered, label = TRUE) + NoLegend()
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:25)
+DimPlot(heart_filtered, label = TRUE) + NoLegend()
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:24)
+DimPlot(heart_filtered, label = TRUE) + NoLegend()
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:23)
+DimPlot(heart_filtered, label = TRUE) + NoLegend()
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:22)
+DimPlot(heart_filtered, label = TRUE) + NoLegend()
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:21)
+DimPlot(heart_filtered, label = TRUE) + NoLegend()
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:20)
+DimPlot(heart_filtered, label = TRUE) + NoLegend()
+```
+
+
