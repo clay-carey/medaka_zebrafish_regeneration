@@ -1,0 +1,292 @@
+---
+title: "Epicardium_2"
+author: "Clay Carey"
+date: "2023-02-16"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(Seurat)
+library(dittoSeq)
+library(Nebulosa)
+library(dplyr)
+library(gridExtra)
+library(viridis)
+heart_filtered <- readRDS(file = '/Users/claytoncarey/Documents/Seurat/heart_filtered_clusterd.rds')
+```
+```{r}
+DimPlot(heart_filtered, label = TRUE)
+FeaturePlot(heart_filtered, features = c('wt1a','tcf21','postnb','twist1b','col12a1a','nrg1'))
+```
+
+```{r}
+epicardium <- subset(heart_filtered, idents = c(3,21,16))
+```
+
+```{r}
+DefaultAssay(epicardium) <- "integrated"
+epicardium <- ScaleData(epicardium)
+epicardium <- RunPCA(epicardium, npcs = 30 )
+epicardium <- RunUMAP(epicardium, dims = 1:21)
+epicardium <- FindNeighbors(epicardium, dims = 1:20, reduction = 'pca', n.tree = 500, l2.norm = TRUE )
+epicardium <- FindClusters(epicardium, resolution = 0.5)
+DimPlot(epicardium, label = TRUE)
+```
+
+```{r}
+epicardium <- RunUMAP(epicardium, dims = 1:30)
+DimPlot(epicardium, label = TRUE) +NoLegend()
+epicardium <- RunUMAP(epicardium, dims = 1:29)
+DimPlot(epicardium, label = TRUE) +NoLegend()
+epicardium <- RunUMAP(epicardium, dims = 1:28)
+DimPlot(epicardium, label = TRUE) +NoLegend()
+epicardium <- RunUMAP(epicardium, dims = 1:27)
+DimPlot(epicardium, label = TRUE) +NoLegend()
+epicardium <- RunUMAP(epicardium, dims = 1:26)
+DimPlot(epicardium, label = TRUE) +NoLegend()
+epicardium <- RunUMAP(epicardium, dims = 1:25)
+DimPlot(epicardium, label = TRUE) +NoLegend()
+epicardium <- RunUMAP(epicardium, dims = 1:24)
+DimPlot(epicardium, label = TRUE) +NoLegend()
+epicardium <- RunUMAP(epicardium, dims = 1:23)
+DimPlot(epicardium, label = TRUE) +NoLegend()
+epicardium <- RunUMAP(epicardium, dims = 1:22)
+DimPlot(epicardium, label = TRUE) +NoLegend()
+epicardium <- RunUMAP(epicardium, dims = 1:21)
+DimPlot(epicardium, label = TRUE) +NoLegend()
+epicardium <- RunUMAP(epicardium, dims = 1:20)
+DimPlot(epicardium, label = TRUE) +NoLegend()
+```
+
+```{r}
+DefaultAssay(epicardium) <- "RNA"
+FeaturePlot(epicardium, features = c('tcf21','fli1a','kdrl','hbaa1','hmgn2'))
+FeaturePlot(epicardium, features = c('postnb','twist1b','col12a1a','nrg1','aldh1a2'))
+```
+remove endocardium contaminating kdrl/fli1a + ccluster
+```{r}
+epicardium_markers <- FindAllMarkers(epicardium, only.pos = TRUE)
+write.csv(epicardium_markers, file = 'epicardium_markers.csv')
+```
+
+
+
+```{r}
+epicardium_filtered <- subset(epicardium, idents = c(3,5,6), invert = TRUE)
+
+cols <- c("#8dd3c7", "#d9d9d9","#fb8072", "#8DF2C1", "#80b1d3", "#fdb462")
+DefaultAssay(epicardium_filtered) <- "integrated"
+epicardium_filtered <- ScaleData(epicardium_filtered)
+epicardium_filtered <- RunPCA(epicardium_filtered, npcs = 30 )
+epicardium_filtered <- RunUMAP(epicardium_filtered, dims = 1:21, min.dist = 0.25)
+epicardium_filtered <- FindNeighbors(epicardium_filtered, dims = 1:20, reduction = 'pca', n.tree = 500, l2.norm = TRUE )
+epicardium_filtered <- FindClusters(epicardium_filtered, resolution = 0.1)
+DimPlot(epicardium_filtered, label = TRUE, pt.size = 1, cols = cols, label.size = 6) +NoLegend() +NoAxes()
+```
+
+```{r}
+viridis_fp <- function(obj, feature, ...){
+  # the minimal and maximal of the value to make the legend scale the same. 
+  minimal<- min(obj[['RNA']]@data[feature, ])
+  maximal<- max(obj[['RNA']]@data[feature, ]) 
+    p<- FeaturePlot(obj, features = feature, pt.size = 0.5, ...) +
+     scale_color_viridis(option="inferno", limits=c(minimal+0.01, maximal), na.value = 'light grey') + 
+    scale_alpha_manual(, guide = F) +
+    theme(plot.title = element_text(size = 12, face = "bold"))  + NoAxes()
+  p
+}
+```
+
+```{r}
+DefaultAssay(epicardium_filtered) <- "RNA"
+fp1 <- FeaturePlot_scCustom(epicardium_filtered, features = 'tcf21', na_color = 'light grey') + NoAxes()
+fp2 <- FeaturePlot_scCustom(epicardium_filtered,  features ='postnb', na_color = 'light grey') + NoAxes()
+fp3 <- FeaturePlot_scCustom(epicardium_filtered,  features ='col12a1a', na_color = 'light grey') + NoAxes()
+fp4 <- FeaturePlot_scCustom(epicardium_filtered,  features = 'fn1a', na_color = 'light grey') + NoAxes()
+
+grid.arrange(fp1,fp2,fp3,fp4, nrow =2, ncol =2)
+```
+
+```{r}
+fp5 <- viridis_fp(epicardium_filtered, 'cxcl8a')
+fp6 <- viridis_fp(epicardium_filtered, 'aldh1a2')
+
+fp7 <- viridis_fp(epicardium_filtered, 'nrg1')
+fp7
+fp5 + fp6
+```
+
+```{r}
+ditto_color <- c("#61A2DE","#61A2DE","#61A2DE","#D39234","#D39234","#D39234")
+shades_of_grey <- c("#F2F2F2", "#C9C9C9", "#A6A6A6", "#7E7E7E", "#4F4F4F")
+
+
+my_levels <- c("zebrafish_uninjured","zebrafish_3dpi","zebrafish_14dpi","medaka_uninjured","medaka_3dpi","medaka_14dpi")
+epicardium_filtered@meta.data$group <- factor(x = epicardium_filtered@meta.data$group, levels = my_levels)
+
+dittoFreqPlot(epicardium_filtered, "seurat_clusters", sample.by = 'sample', group.by = 'group',vars.use = 2 ,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of epicardial cells in cluster 2")
+
+```
+
+
+```{r}
+
+vln_color <- c("#55DFD4","#69D5F8","#5192DC","#F7BC6D","#FCDA61","#FA8961")
+
+
+vln1 <- VlnPlot(epicardium_filtered, features = c("col12a1a","col12a1b",'twist1b','postnb','fn1a','col1a1a','col1a2'), split.by = 'group', group.by = 'group', stack = TRUE, flip = TRUE, cols = vln_color)
+
+vln2 <-  VlnPlot(epicardium_filtered, features = c('fn1a','fn1','col1a2','col1','col1a1a'), split.by = 'group', group.by = 'group', stack = TRUE, flip = TRUE, cols = vln_color)
+
+vln3 <- VlnPlot(epicardium_filtered, features = 'nrg1', idents = 1, group.by = 'group')
+
+vln2
+vln1
+vln3
+
+
+```
+
+
+```{r}
+epi_filtered_markers <- FindAllMarkers(epicardium_filtered, only.pos = TRUE)
+write.csv(epi_filtered_markers, file = 'epi_filt_markers.csv')
+```
+```{r}
+angiogenic <- c('angptl5','angptl2b','angptl1a','angpt1','vegfaa','vegfc','vegfab','vegfd','vegfba','vegfbb', "cxcl8a")
+
+VlnPlot(epicardium_filtered, features = angiogenic, group.by = 'group', split.by = 'group', stack = TRUE, flip = TRUE)
+
+
+VlnPlot(epicardium_filtered, features = angiogenic, group.by = 'group', split.by = 'group', stack = TRUE, flip = TRUE, idents = 0)
+VlnPlot(epicardium_filtered, features = angiogenic, group.by = 'group', split.by = 'group', stack = TRUE, flip = TRUE, idents = 1)
+VlnPlot(epicardium_filtered, features = angiogenic, group.by = 'group', split.by = 'group', stack = TRUE, flip = TRUE, idents = 2)
+VlnPlot(epicardium_filtered, features = angiogenic, group.by = 'group', split.by = 'group', stack = TRUE, flip = TRUE, idents = 3)
+VlnPlot(epicardium_filtered, features = angiogenic, group.by = 'group', split.by = 'group', stack = TRUE, flip = TRUE, idents = 4)
+
+
+
+```
+
+
+```{r}
+dittoFreqPlot(epicardium_filtered, "seurat_clusters", sample.by = 'sample', group.by = 'group',vars.use = 3 ,color.panel = ditto_color) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank())
+
+VlnPlot(epicardium_filtered, features ='nrg1', idents = '3', group.by = 'group')
+```
+
+```{r}
+nrg1_pos <- subset(epicardium_filtered, subset = nrg1 > 0)
+nrg1_cells <- nrg1_pos@meta.data
+nrg1_cells$nrg1_pos <- "positive"
+nrg1_cells$cell_id <- rownames(nrg1_cells)
+nrg1_cells <- select(nrg1_cells, nrg1_pos, cell_id)
+all_meta <- epicardium_filtered@meta.data
+all_meta$cell_id <- row.names(all_meta)
+all_meta <- left_join(all_meta, nrg1_cells, by = 'cell_id')
+row.names(all_meta) <- all_meta$cell_id
+
+all_meta <- select(all_meta, -cell_id)
+all_meta
+
+epi_filt_nrg <- epicardium_filtered
+epi_filt_nrg@meta.data <- all_meta
+epi_2_nrg <- subset(epi_filt_nrg, idents = 2)
+
+dittoFreqPlot(epi_filt_nrg, "nrg1_pos", sample.by = 'sample', group.by = 'group',color.panel = ditto_color) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of epicarial cells expressing nrg1")
+
+dittoFreqPlot(epi_2_nrg, "nrg1_pos", sample.by = 'sample', group.by = 'group',color.panel = ditto_color) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank())
+```
+
+```{r}
+
+aldh1a2_pos <- subset(epicardium_filtered, subset = aldh1a2 > 0)
+aldh1a2_cells <- aldh1a2_pos@meta.data
+aldh1a2_cells$aldh1a2_pos <- "positive"
+aldh1a2_cells$cell_id <- rownames(aldh1a2_cells)
+aldh1a2_cells <- select(aldh1a2_cells, aldh1a2_pos, cell_id)
+all_meta <- epicardium_filtered@meta.data
+all_meta$cell_id <- row.names(all_meta)
+all_meta <- left_join(all_meta, aldh1a2_cells, by = 'cell_id')
+row.names(all_meta) <- all_meta$cell_id
+
+all_meta <- select(all_meta, -cell_id)
+all_meta
+
+epi_filt_aldh <- epicardium_filtered
+epi_filt_aldh@meta.data <- all_meta
+epi_2_aldh <- subset(epi_filt_aldh, idents = 2 )
+
+dittoFreqPlot(epi_filt_aldh, "aldh1a2_pos", sample.by = 'sample', group.by = 'group',color.panel = ditto_color) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank())
+
+dittoFreqPlot(epi_2_aldh, "aldh1a2_pos", sample.by = 'sample', group.by = 'group',color.panel = ditto_color) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank())
+
+```
+
+```{r}
+library(clusterProfiler)
+library(org.Dr.eg.db)
+library(AnnotationHub)
+epi_filtered_markers <- FindAllMarkers(epicardium_filtered, only.pos = TRUE, min.pct = 0.2)
+top100 <- epi_filtered_markers %>% group_by(cluster) %>% top_n(n = 100, wt = avg_log2FC)
+top100pval <- subset(top100, rowSums(top100[5] < 0.05) > 0)
+top100pval
+df <- top100pval[,7:6]
+dfsample <- split(df$gene,df$cluster)
+length(dfsample)
+dfsample$`0` = bitr(dfsample$`0`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`1` = bitr(dfsample$`1`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`2` = bitr(dfsample$`2`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`3` = bitr(dfsample$`3`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`4` = bitr(dfsample$`4`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+
+
+genelist <- list("0" = dfsample$`0`$ENTREZID, 
+                 "1" = dfsample$`1`$ENTREZID,
+                 "2" = dfsample$`2`$ENTREZID,
+                 "3" = dfsample$`3`$ENTREZID,
+                 "4" = dfsample$`4`$ENTREZID
+)
+
+GOclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichGO", OrgDb = "org.Dr.eg.db")
+dotplot(GOclusterplot)
+KEGGclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichKEGG", organism = "zebrafish")
+dotplot(KEGGclusterplot)
+Pathwayclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichPathway", organism = "zebrafish")
+dotplot(Pathwayclusterplot)
+GOclusterplot@compareClusterResult
+```
+
+```{r}
+zf2md <- read.csv(file = "/Users/claytoncarey/Documents/Seurat/zf.cm.markers/zf2md.csv")
+
+zf2md_collagens <- filter(zf2md, grepl("^col\\d+", zf_name) & type == 'ortholog_one2one' & score == 1)
+
+zf2md_collagens
+
+ortho_collagens <- zf2md_collagens$zf_name
+
+zf2md_mmp <- filter(zf2md, grepl("^mmp\\d+", zf_name) & type == 'ortholog_one2one' & score == 1)
+
+zf2md_mmp 
+
+ortho_mmp <- zf2md_mmp$zf_name
+
+zf2md_timp <- filter(zf2md, grepl("^timp\\d+", zf_name) & type == 'ortholog_one2one' & score == 1)
+
+zf2md_timp 
+```
+
+```{r}
+vln_color <- c("#55DFD4","#69D5F8","#5192DC","#F7BC6D","#FCDA61","#FA8961")
+
+ortho_collagens <- c( "col28a2a", "col10a1a", "col1a1b",  "col1a2",   "col8a2",   "col12a1a", "col4a1",   "col9a3",   "col4a6",   "col18a1a", "col4a5", "col9a2",   "col6a2",   "col6a1",   "col9a1b",  "col5a2a",  "col11a2",  "col12a1b", "col9a1a",  "col2a1a",  "col1a1a",  "col10a1b" )
+VlnPlot(epicardium_filtered, features = ortho_collagens, split.by = 'group', group.by = 'group', stack = TRUE, flip = TRUE, cols = vln_color)
+```
+```{r}
+vln_color <- c("#55DFD4","#69D5F8","#5192DC","#F7BC6D","#FCDA61","#FA8961")
+
+
+VlnPlot(epicardium_filtered, features = c(ortho_mmp,"timp2b",'timp2a'), split.by = 'group', group.by = 'group', stack = TRUE, flip = TRUE, cols = vln_color)
+```
