@@ -1,0 +1,364 @@
+---
+title: "Endocardium analysis"
+author: "Clay Carey"
+date: "2023-02-21"
+output: pdf_document
+---
+
+```{r}
+library(ggplot2)
+library(Seurat)
+library(dittoSeq)
+library(Nebulosa)
+library(dplyr)
+library(gridExtra)
+library(viridis)
+library(scCustomize)
+```
+
+
+```{r}
+DimPlot(heart_filtered, label = TRUE)
+```
+
+```{r}
+DefaultAssay(heart_filtered) <- "RNA"
+FeaturePlot(heart_filtered, features = c("kdrl",'fli1a','col1a1a','col1a2'))
+```
+
+```{r}
+endocardium <- subset(heart_filtered, idents = c(0,1,9,12,15,17,18,20))
+```
+
+```{r}
+palette <- c("#a6cee3", "#fdbf6f", "#b2df8a", "#fb9a99", "#cab2d6", "#bcbddc","#ff9896", "#e377c2", "#c6dcbd", "#17becf", "#9edae5", "#8c96c6")
+
+
+
+DefaultAssay(endocardium) <- "integrated"
+endocardium <- ScaleData(endocardium)
+endocardium <- RunPCA(endocardium, npcs = 30 )
+endocardium <- RunUMAP(endocardium, dims = 1:28)
+endocardium <- FindNeighbors(endocardium, dims = 1:20, reduction = 'pca', n.tree = 500, l2.norm = TRUE )
+endocardium <- FindClusters(endocardium, resolution = .2)
+DimPlot(endocardium, label = TRUE, cols = palette) +NoLegend() + NoAxes()
+DimPlot(endocardium, split.by = 'species')
+DimPlot(endocardium, group.by = 'group', cols = vln_color)
+```
+
+cluster 10 is contaminating T CELLS, lets remove
+
+```{r}
+FeaturePlot_scCustom(endocardium, features = c('lck','runx3','zap70'))
+```
+```{r}
+endocardium <- subset(endocardium, idents = 10, invert = TRUE)
+```
+
+```{r}
+vln_color <- c("#55DFD4","#69D5F8","#5192DC","#F7BC6D","#FCDA61","#FA8961")
+
+DefaultAssay(endocardium) <- "integrated"
+endocardium <- ScaleData(endocardium)
+endocardium <- RunPCA(endocardium, npcs = 30 )
+endocardium <- RunUMAP(endocardium, dims = 1:27)
+endocardium <- FindNeighbors(endocardium, dims = 1:20, reduction = 'pca', n.tree = 500, l2.norm = TRUE )
+endocardium <- FindClusters(endocardium, resolution = .2)
+DimPlot(endocardium, label = TRUE, cols = palette) +NoLegend() + NoAxes()
+DimPlot(endocardium, label = TRUE, cols = palette, group.by = 'endo_cell_type', pt.size =.4) +NoLegend() + NoAxes()
+DimPlot(endocardium, split.by = 'species')
+DimPlot(endocardium, group.by = 'group', cols = vln_color)
+```
+
+```{r}
+saveRDS(endocardium, file = 'endocardium.rds')
+endocardium <- readRDS(file = 'endocardium.rds')
+```
+
+```{r}
+DefaultAssay(endocardium) <- "RNA"
+Idents(endocardium) <- "endo_cell_class"
+endo_markers <- c("f8","spock3","slc6a4a",'col1a2','col1a1a','sparc','plvapb','cavin1b','cldn5b','lyve1a','lyve1b','prox1a','pdgfrb','rgs5a','rasl12')
+DotPlot(endocardium, features = endo_markers, scale = FALSE) +
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.5) +
+  scale_colour_viridis(option="magma") +
+  guides(size=guide_legend(override.aes=list(shape=21, colour="black", fill="white"))) + theme(axis.text.x =    element_text(angle =45,hjust = 1)) + theme(legend.title = element_text( size = 8))
+```
+```{r}
+DefaultAssay(endocardium) <- "RNA"
+Idents(endocardium) <- "endo_cell_type"
+cellcycle_markers <- c('fli1a','col1a1a','col1a2','pcna','mcm5','mcm4','cenpf','top2a','cdk1')
+DotPlot(endocardium, features = cellcycle_markers, scale = FALSE, idents = c('fEC1','fEC2','fEC3')) +
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.5) +
+  scale_colour_viridis(option="magma") +
+  guides(size=guide_legend(override.aes=list(shape=21, colour="black", fill="white"))) + theme(axis.text.x =    element_text(angle =45,hjust = 1)) + theme(legend.title = element_text( size = 8))
+```
+
+
+
+```{r}
+DefaultAssay(endocardium) <- "RNA"
+Idents(endocardium) <- "endo_cell_class"
+endo_class_markers <- FindAllMarkers(endocardium, min.pct = 0.2, only.pos = TRUE)
+write.csv(endo_class_markers, file = 'endo_class_markers.csv')
+
+Idents(endocardium) <- "endo_cell_type"
+endo_class_markers <- FindAllMarkers(endocardium, min.pct = 0.2, only.pos = TRUE)
+write.csv(endo_class_markers, file = 'endo_type_markers.csv')
+```
+
+```{r}
+endocardium@meta.data <- mutate(endocardium@meta.data, endo_cell_type = case_when(
+  seurat_clusters == 0 ~ "eEC1",
+  seurat_clusters == 1 ~ "eEC2",
+  seurat_clusters == 2 ~ "eEC3",
+  seurat_clusters == 3 ~ "fEC1",
+  seurat_clusters == 4 ~ "eEC4",
+  seurat_clusters == 5 ~ "cEC",
+  seurat_clusters == 6 ~ "eEC5",
+  seurat_clusters == 7 ~ "Mural",
+  seurat_clusters == 8 ~ "fEC2",
+  seurat_clusters == 9 ~ "fEC3",
+  seurat_clusters == 10 ~ "lEC",
+  TRUE ~ "Unclass"
+))
+
+endocardium@meta.data <- mutate(endocardium@meta.data, endo_cell_class = case_when(
+  seurat_clusters == 0 ~ "eEC",
+  seurat_clusters == 1 ~ "eEC",
+  seurat_clusters == 2 ~ "eEC",
+  seurat_clusters == 3 ~ "fEC",
+  seurat_clusters == 4 ~ "eEC",
+  seurat_clusters == 5 ~ "cEC",
+  seurat_clusters == 6 ~ "eEC",
+  seurat_clusters == 7 ~ "Mural",
+  seurat_clusters == 8 ~ "fEC",
+  seurat_clusters == 9 ~ "fEC",
+  seurat_clusters == 10 ~ "lEC",
+  TRUE ~ "Unclass"
+))
+
+endocardium@meta.data <- mutate(endocardium@meta.data, endo_cell_prolif = case_when(
+  seurat_clusters == 0 ~ "other EC",
+  seurat_clusters == 1 ~ "other EC",
+  seurat_clusters == 2 ~ "other EC",
+  seurat_clusters == 3 ~ "fEC",
+  seurat_clusters == 4 ~ "other EC",
+  seurat_clusters == 5 ~ "other EC",
+  seurat_clusters == 6 ~ "other EC",
+  seurat_clusters == 7 ~ "other EC",
+  seurat_clusters == 8 ~ "fEC proliferating",
+  seurat_clusters == 9 ~ "fEC proliferating",
+  seurat_clusters == 10 ~ "other EC",
+  TRUE ~ "Unclass"
+))
+```
+
+
+```{r}
+FeaturePlot_scCustom(endocardium, features = c('nppc','col1a2','col12a1a','aqp1a.1'))
+```
+
+
+
+
+
+```{r}
+endo_markers <- FindAllMarkers(endocardium, only.pos = TRUE, min.pct = 0.2)
+write.csv(endo_markers, file = 'endo_markers.csv')
+```
+
+
+```{r}
+
+library(clusterProfiler)
+library(org.Dr.eg.db)
+library(AnnotationHub)
+
+top100 <- endo_markers %>% group_by(cluster) %>% top_n(n = 100, wt = avg_log2FC)
+top100pval <- subset(top100, rowSums(top100[5] < 0.05) > 0)
+top100pval
+df <- top100pval[,7:6]
+dfsample <- split(df$gene,df$cluster)
+length(dfsample)
+dfsample$`0` = bitr(dfsample$`0`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`1` = bitr(dfsample$`1`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`2` = bitr(dfsample$`2`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`3` = bitr(dfsample$`3`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`4` = bitr(dfsample$`4`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`5` = bitr(dfsample$`5`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`6` = bitr(dfsample$`6`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`7` = bitr(dfsample$`7`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`8` = bitr(dfsample$`8`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`9` = bitr(dfsample$`9`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`10` = bitr(dfsample$`10`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+dfsample$`11` = bitr(dfsample$`11`, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Dr.eg.db")
+
+genelist <- list("0" = dfsample$`0`$ENTREZID, 
+                 "1" = dfsample$`1`$ENTREZID,
+                 "2" = dfsample$`2`$ENTREZID,
+                 "3" = dfsample$`3`$ENTREZID,
+                 "4" = dfsample$`4`$ENTREZID,
+                 "5" = dfsample$`5`$ENTREZID,
+                 "6" = dfsample$`6`$ENTREZID,
+                 "7" = dfsample$`7`$ENTREZID,
+                 "8" = dfsample$`8`$ENTREZID,
+                 "9" = dfsample$`9`$ENTREZID,
+                 "10" = dfsample$`10`$ENTREZID,
+                 "11" = dfsample$`11`$ENTREZID
+)
+
+GOclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichGO", OrgDb = "org.Dr.eg.db")
+dotplot(GOclusterplot)
+KEGGclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichKEGG", organism = "zebrafish")
+dotplot(KEGGclusterplot)
+Pathwayclusterplot <- compareCluster(geneCluster = genelist, fun = "enrichPathway", organism = "zebrafish")
+dotplot(Pathwayclusterplot)
+
+
+write.csv(endo_markers, file = 'endo_markers.csv')
+write.csv(KEGGclusterplot@compareClusterResult, file = 'endo_KEGG_analysis.csv')
+write.csv(GOclusterplot@compareClusterResult, file = 'endo_GO_analysis.csv')
+
+```
+
+```{r}
+
+angiogenic = c("angptl5",  "angptl2b", "angptl1a", "angpt1",   "vegfaa",   "vegfc",    "vegfab",   "vegfd",    "vegfba",   "cxcl8a")
+
+DefaultAssay(endocardium) <- 'RNA'
+FeaturePlot_scCustom(endocardium, features = c('tmsb1','cxcl12b','igfbp7','aoc2','hopx'))
+FeaturePlot_scCustom(endocardium, features = 'postna', split.by = 'species')
+FeaturePlot_scCustom(endocardium, features = 'aldh1a2', split.by = 'group')
+FeaturePlot_scCustom(endocardium, features = 'col12a1a', split.by = 'species')
+FeaturePlot_scCustom(endocardium, features = 'apln', split.by = 'species')
+FeaturePlot_scCustom(endocardium, features = angiogenic, split.by = 'species')
+
+
+fp1 <- FeaturePlot_scCustom(endocardium, features = 'fli1a') +NoAxes()
+fp2 <- FeaturePlot_scCustom(endocardium, features = 'kdrl') +NoAxes()
+fp3 <- FeaturePlot_scCustom(endocardium, features = 'col1a1a') +NoAxes()
+fp4 <- FeaturePlot_scCustom(endocardium, features = 'col1a2') +NoAxes()
+fp5 <- FeaturePlot_scCustom(endocardium, features = 'aldh1a2') +NoAxes()
+fp6 <- FeaturePlot_scCustom(endocardium, features = 'col12a1a') +NoAxes()
+
+grid.arrange(fp1,fp2,fp3,fp4,fp5,fp6, nrow = 2 , ncol = 3)
+
+```
+
+
+```{r}
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+```
+
+```{r}
+
+ditto_color <- c("#61A2DE","#61A2DE","#61A2DE","#D39234","#D39234","#D39234")
+shades_of_grey <- c("#F2F2F2", "#C9C9C9", "#A6A6A6", "#7E7E7E", "#4F4F4F")
+
+
+my_levels <- c("zebrafish_uninjured","zebrafish_3dpi","zebrafish_14dpi","medaka_uninjured","medaka_3dpi","medaka_14dpi")
+endocardium@meta.data$group <- factor(x = endocardium@meta.data$group, levels = my_levels)
+
+dittoFreqPlot(endocardium, "endo_cell_class", sample.by = 'sample', group.by = 'group' ,vars.use = 'fEC',color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "endo_cell_class", sample.by = 'sample', group.by = 'group' ,vars.use = 'eEC',color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "endo_cell_class", sample.by = 'sample', group.by = 'group' ,vars.use = 'cEC',color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+
+
+
+```
+
+```{r}
+dittoFreqPlot(endocardium, "endo_cell_prolif", sample.by = 'sample', group.by = 'group' ,vars.use = 'fEC proliferating',color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+```
+
+```{r}
+ditto_color <- c("#61A2DE","#61A2DE","#61A2DE","#D39234","#D39234","#D39234")
+shades_of_grey <- c("#F2F2F2", "#C9C9C9", "#A6A6A6", "#7E7E7E", "#4F4F4F")
+
+
+my_levels <- c("zebrafish_uninjured","zebrafish_3dpi","zebrafish_14dpi","medaka_uninjured","medaka_3dpi","medaka_14dpi")
+endocardium@meta.data$group <- factor(x = endocardium@meta.data$group, levels = my_levels)
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 0,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 1,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 2,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 3,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 4,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 5,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 6,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 7,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 8,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 9,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 10,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+dittoFreqPlot(endocardium, "seurat_clusters", sample.by = 'sample', group.by = 'group' ,vars.use = 11,color.panel = ditto_color, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of endocardial cells")
+
+
+```
+
+
+```{r}
+angiogenic_filt= c('angptl2b','vegfab','vegfaa')
+
+VlnPlot(endocardium, features = angiogenic_filt, split.by = 'group',group.by = 'group', stack = TRUE, flip = TRUE, idents = 1)
+VlnPlot(endocardium, features = angiogenic_filt, split.by = 'group',group.by = 'group', stack = TRUE, flip = TRUE, idents = 2)
+VlnPlot(endocardium, features = angiogenic_filt, split.by = 'group',group.by = 'group', stack = TRUE, flip = TRUE, idents = 3)
+VlnPlot(endocardium, features = angiogenic_filt, split.by = 'group',group.by = 'group', stack = TRUE, flip = TRUE, idents = 4)
+VlnPlot(endocardium, features = angiogenic_filt, split.by = 'group',group.by = 'group', stack = TRUE, flip = TRUE, idents = 5)
+VlnPlot(endocardium, features = angiogenic_filt, split.by = 'group',group.by = 'group', stack = TRUE, flip = TRUE, idents = 6)
+VlnPlot(endocardium, features = angiogenic_filt, split.by = 'group',group.by = 'group', stack = TRUE, flip = TRUE, idents = 7)
+VlnPlot(endocardium, features = angiogenic_filt, split.by = 'group',group.by = 'group', stack = TRUE, flip = TRUE, idents = 8)
+VlnPlot(endocardium, features = angiogenic_filt, split.by = 'group',group.by = 'group', stack = TRUE, flip = TRUE, idents = 9)
+VlnPlot(endocardium, features = angiogenic_filt, split.by = 'group',group.by = 'group', stack = TRUE, flip = TRUE, idents = 10)
+VlnPlot(endocardium, features = angiogenic_filt, split.by = 'group',group.by = 'group', stack = TRUE, flip = TRUE, idents = 11)
+```
+
+```{r}
+VlnPlot(endocardium, cols = vln_color, features = 'aldh1a2', group.by = 'group')
+
+VlnPlot(endocardium, cols = vln_color, features = 'nrg1', group.by = 'group', idents = 4)
+
+VlnPlot(endocardium, cols = vln_color, features = 'cxcr4a', group.by = 'group', idents = 5)
+VlnPlot(endocardium, cols = vln_color, features = 'apln', group.by = 'group', idents = 5)
+
+```
+
+
+```{r}
+
+DefaultAssay(endocardium) <- "RNA"
+cc_markers <- read.csv(file = '/Users/claytoncarey/Documents/Seurat/ccmarkers.csv')
+s.genes <- cc_markers$s
+g2m.genes <- cc_markers$g2m
+endocardium <- CellCycleScoring(endocardium, s.features = s.genes, g2m.features = g2m.genes, set.ident = FALSE)
+
+DimPlot(endocardium, group.by = 'Phase')
+
+```
+
+```{r}
+Idents(endocardium) <- "endo_cell_class"
+VlnPlot_scCustom(endocardium, features = 'aldh1a2', split.by = 'group', colors_use = vln_color, pt.size = 0,sort = TRUE) 
+VlnPlot_scCustom(endocardium, features = 'thbs1a', split.by = 'group', colors_use = vln_color, pt.size = 0,sort = TRUE) 
+VlnPlot_scCustom(endocardium, features = 'ptx3a', split.by = 'group', colors_use = vln_color, pt.size = 0,sort = TRUE) 
+VlnPlot_scCustom(endocardium, features = 'bmp3', split.by = 'group', colors_use = vln_color, pt.size = 0,sort = TRUE) 
+VlnPlot_scCustom(endocardium, features = 'cd9b', split.by = 'group', colors_use = vln_color, pt.size = 0,sort = TRUE) 
+
+
+```
+
+
