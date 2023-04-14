@@ -1,0 +1,430 @@
+---
+title: "Myocardium Analysis (Figure 6 and 7)"
+author: "Clay Carey"
+date: "2023-04-12"
+output: pdf_document
+---
+
+```{r}
+library(ggplot2)
+library(Seurat)
+library(dittoSeq)
+library(Nebulosa)
+library(dplyr)
+library(gridExtra)
+library(viridis)
+library(scCustomize)
+library(ggVennDiagram)
+library(Vennerable)
+```
+
+```{r}
+heart_filtered <- readRDS(file = "heart_filtered.rds")
+```
+
+```{r}
+vln_color <- c("#55DFD4","#69D5F8","#5192DC","#F7BC6D","#FCDA61","#FA8961")
+
+myocardium <- subset(heart_filtered, idents = c(2,3,7,8,14,19))
+DefaultAssay(myocardium) <- "integrated"
+myocardium <- ScaleData(myocardium, assay = 'integrated' )
+myocardium <- RunPCA(myocardium, npcs = 30 )
+myocardium <- RunUMAP(myocardium, dims = 1:27, min.dist = 0.1, n.epochs = 200)
+myocardium <- FindNeighbors(myocardium, dims = 1:30, reduction = 'pca', n.tree = 500 )
+myocardium <- FindClusters(myocardium, resolution = 0.2, algorithm = 2)
+DimPlot(myocardium, label = TRUE, pt.size = 1, label.size = 6) +NoLegend() +NoAxes()
+DimPlot(myocardium, group.by = 'group', cols = vln_color)
+FeaturePlot_scCustom(myocardium, features = 'fli1a')
+
+```
+
+remove cluster 4 doublets 
+```{r}
+myo_colors <- c("#fdbf6f", "#b2df8a", "#FFA07A","#fb9a99")
+myocardium <- subset(myocardium, idents = 4, invert = TRUE)
+DefaultAssay(myocardium) <- "integrated"
+myocardium <- ScaleData(myocardium, assay = 'integrated')
+myocardium <- RunPCA(myocardium, npcs = 30 )
+myocardium <- RunUMAP(myocardium, dims = 1:25, min.dist = 0.1, n.epochs = 200)
+myocardium <- FindNeighbors(myocardium, dims = 1:30, reduction = 'pca', n.tree = 500 )
+myocardium <- FindClusters(myocardium, resolution = 0.15, algorithm = 2)
+DimPlot(myocardium, label = TRUE, pt.size = 1, label.size = 6, cols = myo_colors) +NoLegend() +NoAxes()
+DimPlot(myocardium, group.by = 'group', cols = vln_color)
+```
+
+```{r}
+myocardium@meta.data <- mutate(myocardium@meta.data, cell_type = case_when(
+  seurat_clusters == 0 ~ "tCM1",
+  seurat_clusters == 1 ~ "cCM1",
+  seurat_clusters == 2 ~ "tCM2",
+  seurat_clusters == 3 ~ "tCM3"
+))
+
+myocardium@meta.data <- mutate(myocardium@meta.data, layer = case_when(
+  seurat_clusters == 0 ~ "Trabecular",
+  seurat_clusters == 1 ~ "Cortical",
+  seurat_clusters == 2 ~ "Trabecular",
+  seurat_clusters == 3 ~ "Trabecular"
+))
+```
+
+```{r}
+my_levels <- c("tCM1","tCM2","tCM3","cCM1")
+myocardium@meta.data$cell_type <- factor(x = myocardium@meta.data$cell_type, levels = my_levels)
+DefaultAssay(myocardium) <- "RNA"
+Idents(myocardium) <- "cell_type"
+myo_dot_markers <- c('myl7','actc1a',"tbx5a","gata6","mef2d","acta2","actn1","hey2")
+ DotPlot(myocardium, features = myo_dot_markers, scale = TRUE) +
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.5) +
+  scale_colour_viridis(option="plasma") +
+  guides(size=guide_legend(override.aes=list(shape=21, colour="black", fill="white"))) + theme(axis.text.x =    element_text(angle =45,hjust = 1)) + theme(legend.title = element_text( size = 8))
+```
+
+```{r}
+dittoFreqPlot(myocardium, "layer", sample.by = 'sample', group.by = 'species' ,color.panel = c("#D39234","#61A2DE"), boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Percent of cardiomyocytes")  +scale_y_continuous(n.breaks = 20)  
+```
+```{r}
+process_seurat <- function(data, mtcutoff = 20){
+  so.data <- Read10X(data.dir = data)
+  so <- CreateSeuratObject(counts = so.data, min.cells = 3)
+  so[["percent.mt"]] <- PercentageFeatureSet(so, pattern = "^mt-")
+  so <- subset(so, subset = nFeature_RNA > 200 & percent.mt < mtcutoff)
+  so <- NormalizeData(so)
+  return(so)
+}
+
+zf_uninj1 <- process_seurat(data = '/Users/claytoncarey/Documents/Seurat/19226X1_bc', mtcutoff = 30)
+zf_uninj1@meta.data$sample <- "zf1"
+zf_uninj2 <- process_seurat(data = '/Users/claytoncarey/Documents/Seurat/19226X2_bc', mtcutoff = 30)
+zf_uninj2@meta.data$sample <- "zf2"
+
+zf_uninj <- merge(zf_uninj1, y = zf_uninj2)
+
+zf_uninj <- FindVariableFeatures(zf_uninj, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(zf_uninj)
+zf_uninj <- ScaleData(zf_uninj, features = all.genes, vars.to.regress = 'percent.mt')
+zf_uninj <- RunPCA(zf_uninj, features = VariableFeatures(object = zf_uninj))
+zf_uninj <- FindNeighbors(zf_uninj, dims = 1:20)
+zf_uninj <- FindClusters(zf_uninj, resolution = 0.5)
+zf_uninj <- RunUMAP(zf_uninj, dims = 1:20)
+DimPlot(zf_uninj)
+```
+```{r}
+zf_uninj_myo <- subset(zf_uninj, idents = c(1,3,5,9))
+
+zf.myo.list <- SplitObject(zf_uninj_myo, split.by = 'sample')
+
+zf.myo.list <- lapply(X = zf.myo.list, FUN = function(x) {
+    x <- NormalizeData(x)
+    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+})
+
+features <- SelectIntegrationFeatures(object.list = zf.myo.list)
+anchors <- FindIntegrationAnchors(object.list = zf.myo.list, anchor.features = features)
+zf.uninj.myo.int <- IntegrateData(anchorset = anchors)
+
+DefaultAssay(zf.uninj.myo.int) <- "integrated"
+
+zf.uninj.myo.int <- ScaleData(zf.uninj.myo.int, verbose = FALSE)
+zf.uninj.myo.int <- RunPCA(zf.uninj.myo.int, npcs = 30, verbose = FALSE)
+zf.uninj.myo.int <- RunUMAP(zf.uninj.myo.int, reduction = "pca", dims = 1:30)
+zf.uninj.myo.int <- FindNeighbors(zf.uninj.myo.int, reduction = "pca", dims = 1:30)
+zf.uninj.myo.int <- FindClusters(zf.uninj.myo.int, resolution = 0.5)
+
+zf.uninj.myo.int <- RunUMAP(zf.uninj.myo.int, dims = 1:23, min.dist = 0.9, n.epochs = 500)
+zf.uninj.myo.int <- FindClusters(zf.uninj.myo.int, resolution = 0.05, algorithm = 2)
+DimPlot(zf.uninj.myo.int)
+DimPlot(zf.uninj.myo.int, group.by = 'sample')
+
+DefaultAssay(zf.uninj.myo.int) <- "RNA"
+FeaturePlot_scCustom(zf.uninj.myo.int, features = c('acta2','hey2','cxcl14','emilin1b',"lama5",'clcn2a'))
+
+```
+
+
+
+```{r}
+md_uninj1 <- process_seurat('/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_3', 30)
+md_uninj1@meta.data$sample <- "md1"
+md_uninj2 <- process_seurat(data = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_4', mtcutoff = 30)
+md_uninj2@meta.data$sample <- "md2"
+
+md_uninj <- merge(md_uninj1, y = md_uninj2)
+
+md_uninj <- FindVariableFeatures(md_uninj, selection.method = "vst", nfeatures = 2000)
+all.genes <- rownames(md_uninj)
+md_uninj <- ScaleData(md_uninj, features = all.genes)
+md_uninj <- RunPCA(md_uninj, features = VariableFeatures(object = md_uninj))
+md_uninj <- FindNeighbors(md_uninj, dims = 1:20)
+md_uninj <- FindClusters(md_uninj, resolution = 0.5)
+md_uninj <- RunUMAP(md_uninj, dims = 1:20)
+DimPlot(md_uninj, reduction = "umap", label = TRUE)
+```
+
+```{r}
+md_uninj_myo <- subset(md_uninj, idents = c(2,6,15,16,18))
+md.myo.list <- SplitObject(md_uninj_myo, split.by = 'sample')
+
+md.myo.list <- lapply(X = md.myo.list, FUN = function(x) {
+    x <- NormalizeData(x)
+    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+})
+
+features <- SelectIntegrationFeatures(object.list = md.myo.list)
+anchors <- FindIntegrationAnchors(object.list = md.myo.list, anchor.features = features)
+md.uninj.myo.int <- IntegrateData(anchorset = anchors)
+
+DefaultAssay(md.uninj.myo.int) <- "integrated"
+
+md.uninj.myo.int <- ScaleData(md.uninj.myo.int, verbose = FALSE)
+md.uninj.myo.int <- RunPCA(md.uninj.myo.int, npcs = 30, verbose = FALSE)
+md.uninj.myo.int <- RunUMAP(md.uninj.myo.int, reduction = "pca", dims = 1:30)
+md.uninj.myo.int <- FindNeighbors(md.uninj.myo.int, reduction = "pca", dims = 1:30)
+md.uninj.myo.int <- FindClusters(md.uninj.myo.int, resolution = 0.5)
+
+md.uninj.myo.int <- RunUMAP(md.uninj.myo.int, dims = 1:23, min.dist = 0.9, n.epochs = 500)
+md.uninj.myo.int <- FindClusters(md.uninj.myo.int, resolution = 0.03, algorithm = 2)
+
+DimPlot(md.uninj.myo.int)
+
+```
+```{r}
+zf_cols <- c("#70FFE8", "#77ABE6", "#AA93FA", "#DB7BE3","#FC5BE3")
+md_cols <- c("#FF5969","#E69063","#FAD27D","#E3DC66","#F6FA50")
+DimPlot(zf.uninj.myo.int, cols = zf_cols, label = TRUE, label.size = 6) + NoLegend() + NoAxes()
+DimPlot(md.uninj.myo.int, cols = md_cols, label = TRUE, label.size = 6) + NoLegend() + NoAxes()
+
+```
+
+
+
+```{r}
+DefaultAssay(zf.uninj.myo.int) <- "RNA"
+DefaultAssay(md.uninj.myo.int) <- "RNA"
+
+FeaturePlot_scCustom(zf.uninj.myo.int, features = c('acta2','hspa12b','clcn2a',"smoc1"))
+f1 <- FeaturePlot_scCustom(zf.uninj.myo.int, features = 'acta2') + NoAxes()
+f2 <- FeaturePlot_scCustom(zf.uninj.myo.int, features = 'hspa12b') + NoAxes()
+f3 <- FeaturePlot_scCustom(zf.uninj.myo.int, features = 'clcn2a') + NoAxes()
+f4 <- FeaturePlot_scCustom(zf.uninj.myo.int, features = 'smoc1') + NoAxes()
+
+grid.arrange(f1,f2,f3,f4,ncol = 4, nrow = 1)
+
+FeaturePlot_scCustom(md.uninj.myo.int, features = c('acta2','hspa12b','clcn2a',"smoc1"))
+p1 <- FeaturePlot_scCustom(md.uninj.myo.int, features = 'acta2') + NoAxes()
+p2 <- FeaturePlot_scCustom(md.uninj.myo.int, features = 'hspa12b') + NoAxes()
+p3 <- FeaturePlot_scCustom(md.uninj.myo.int, features = 'clcn2a') + NoAxes()
+p4 <- FeaturePlot_scCustom(md.uninj.myo.int, features = 'smoc1') + NoAxes()
+
+grid.arrange(p1,p2,p3,p4,ncol = 4, nrow = 1)
+
+```
+
+Import data from cui et al. adding relevant metadata to each sample
+```{r}
+
+
+p4.sham.data <- Read10X(data.dir = '/Users/claytoncarey/Downloads/GSE130699_RAW/P4SHAM')
+p4.3dpi.data <- Read10X(data.dir = '/Users/claytoncarey/Downloads/GSE130699_RAW/P1MID3')
+p11.sham.data <- Read10X(data.dir = '/Users/claytoncarey/Downloads/GSE130699_RAW/P11SHAM')
+p11.3dpi.data <- Read10X(data.dir = '/Users/claytoncarey/Downloads/GSE130699_RAW/P8MID3')
+
+p4.sham <- CreateSeuratObject(counts = p4.sham.data)
+p4.3dpi <- CreateSeuratObject(counts = p4.3dpi.data)
+p11.sham <- CreateSeuratObject(counts = p11.sham.data)
+p11.3dpi <- CreateSeuratObject(counts = p11.3dpi.data)
+
+rm(p4.sham.data)
+rm(p4.3dpi.data)
+rm(p11.sham.data)
+rm(p11.3dpi.data)
+
+p11.sham$orig.ident <- 'p11.sham'
+p11.sham$stage <- 'p11'
+p11.sham$injury <- 'sham'
+
+p11.3dpi$orig.ident <- 'p11.3dpi'
+p11.3dpi$stage <- 'p11'
+p11.3dpi$injury <- '3dpi'
+
+p4.sham$orig.ident <- 'p4.sham'
+p4.sham$stage <- 'p4'
+p4.sham$injury <- 'sham'
+
+p4.3dpi$orig.ident <- 'p4.3dpi'
+p4.3dpi$stage <- 'p4'
+p4.3dpi$injury <- '3dpi'
+
+p11.combined <- merge(p11.sham, y = p11.3dpi)
+p4.combined <- merge(p4.sham, y = p4.3dpi)
+
+p11.combined <- NormalizeData(p11.combined)
+p4.combined <- NormalizeData(p4.combined)
+
+
+p4.combined <- FindVariableFeatures(p4.combined, selection.method = 'vst', nfeatures = '2000')
+p4.combined <- ScaleData(p4.combined)
+p4.combined <- RunPCA(p4.combined, npcs = 30, verbose = FALSE)
+p4.combined <- RunUMAP(p4.combined, reduction = 'pca', dims = 1:25)
+p4.combined <- FindNeighbors(p4.combined, reduction = 'pca')
+p4.combined <- FindClusters(p4.combined, resolution = 0.5)
+
+p11.combined <- FindVariableFeatures(p11.combined, selection.method = 'vst', nfeatures = '2000')
+p11.combined <- ScaleData(p11.combined)
+p11.combined <- RunPCA(p11.combined, npcs = 30, verbose = FALSE)
+p11.combined <- RunUMAP(p11.combined, reduction = 'pca', dims = 1:25)
+p11.combined <- FindNeighbors(p11.combined, reduction = 'pca')
+p11.combined <- FindClusters(p11.combined, resolution = 0.5)
+
+DimPlot(p4.combined, label = TRUE)
+DimPlot(p4.combined, group.by = 'orig.ident')
+DimPlot(p11.combined, label = TRUE)
+DimPlot(p11.combined, group.by = 'orig.ident')
+
+
+
+```
+
+```{r}
+
+zf_myo <- subset(myocardium, subset = species == 'zebrafish')
+md_myo <- subset(myocardium, subset = species == 'medaka')
+
+dpi_upreg <- function(so, idents, cells1, cells2){
+  Idents(so) <- idents
+  DefaultAssay(so) <- "RNA"
+  dpi3_deg <- FindMarkers(so, ident.1 = cells1, ident.2 = cells2)
+  return(dpi3_deg)
+}
+
+zf_3dpi_markers <- dpi_upreg(zf_myo, "group", "zebrafish_3dpi", "zebrafish_uninjured") 
+md_3dpi_markers <- dpi_upreg(md_myo, "group", "medaka_3dpi","medaka_uninjured") 
+p4_3dpi_markers <- dpi_upreg(p4.combined, 'orig.ident','p4.3dpi', 'p4.sham')
+p11_3dpi_markers <- dpi_upreg(p11.combined, 'orig.ident', 'p11.3dpi','p11.sham')
+
+
+```
+
+```{r}
+
+
+zf_3dpi_up <- filter(zf_3dpi_markers, avg_log2FC > 0 & p_val_adj < 0.01 )
+zf_3dpi_down <- filter(zf_3dpi_markers, avg_log2FC < 0 & p_val_adj < 0.01 )
+
+md_3dpi_up <- filter(md_3dpi_markers, avg_log2FC > 0 & p_val_adj < 0.01  )
+md_3dpi_down <- filter(md_3dpi_markers, avg_log2FC < 0 & p_val_adj < 0.01 )
+
+p4_3dpi_up <- filter(p4_3dpi_markers, avg_log2FC > 0 & p_val_adj < 0.01 )
+p4_3dpi_down <- filter(p4_3dpi_markers, avg_log2FC < 0 & p_val_adj < 0.01  )
+
+p11_3dpi_up <- filter(p11_3dpi_markers, avg_log2FC > 0 & p_val_adj < 0.01 ) 
+p11_3dpi_down <- filter(p11_3dpi_markers, avg_log2FC < 0 & p_val_adj < 0.01  )
+
+
+zf_3dpi_up_genes <- rownames(zf_3dpi_up)
+zf_3dpi_down_genes <- rownames(zf_3dpi_down)
+md_3dpi_up_genes <- rownames(md_3dpi_up)
+md_3dpi_down_genes <- rownames(md_3dpi_down)
+p4_3dpi_up_genes <- rownames(p4_3dpi_up)
+p4_3dpi_down_genes <- rownames(p4_3dpi_down)
+p11_3dpi_up_genes <- rownames(p11_3dpi_up)
+p11_3dpi_down_genes <- rownames(p11_3dpi_down)
+
+convert_genes_zf <- function(X){
+  zf_2_mus <- read.delim(file = "/Users/claytoncarey/Downloads/zf2mus.txt")
+
+zf_2_mus <- mutate(zf_2_mus, zf_conv = case_when(
+  Mouse.homology.type == 'ortholog_one2one' ~ Mouse.gene.name,
+  TRUE ~ 'no_ortho' 
+))
+
+zf_2_mus1to1 <- filter(zf_2_mus, zf_conv != 'no_ortho')
+
+pos <- match(X, zf_2_mus1to1$Gene.name)
+values <- zf_2_mus1to1$Mouse.gene.name[pos]
+values <- values[!is.na(values)]
+values
+
+}
+
+convert_genes_md <- function(X){
+  #import zf2md dictionary
+  zf2md <- read.csv(file = "/Users/claytoncarey/Documents/Seurat/zf.cm.markers/zf2md.csv")
+  #filter to only include 1to1 orthologs
+  zf2md_filtered <- filter(zf2md, type == 'ortholog_one2one' & score == 1)
+  #I need to take my vector of medaka genes and replace the medaka gene names with the zebrafish names, given an orthology score >1 
+  md_pos <- match(X, zf2md_filtered$md_name)
+  md_values <- zf2md_filtered$zf_name[md_pos]
+  md_values <- md_values[!is.na(md_values)]
+
+
+  zf_2_mus <- read.delim(file = "/Users/claytoncarey/Downloads/zf2mus.txt")
+
+zf_2_mus <- mutate(zf_2_mus, zf_conv = case_when(
+  Mouse.homology.type == 'ortholog_one2one' ~ Mouse.gene.name,
+  TRUE ~ 'no_ortho' 
+))
+
+zf_2_mus1to1 <- filter(zf_2_mus, zf_conv != 'no_ortho')
+
+pos <- match(md_values, zf_2_mus1to1$Gene.name)
+values <- zf_2_mus1to1$Mouse.gene.name[pos]
+values <- values[!is.na(values)]
+
+
+return(values)
+
+}
+
+remove_no_orthol <- function(x){
+zf_2_mus <- read.delim(file = "/Users/claytoncarey/Downloads/zf2mus.txt")
+zf_2_mus <- filter(zf_2_mus, Mouse.homology.type == 'ortholog_one2one')
+pos <- match(x, zf_2_mus$Mouse.gene.name)
+values <- zf_2_mus$Mouse.gene.name[pos]
+values <- values[!is.na(values)]
+return(values)
+}
+
+remove_mt <- function(X) { 
+   X <- gsub("^mt-.*$", "", X)
+   X <- X[X != ""] 
+   return(X)
+  }
+
+zf_3dpi_up_conv <- convert_genes_zf(zf_3dpi_up_genes)
+zf_3dpi_up_conv <- remove_mt(zf_3dpi_up_conv)
+zf_3dpi_up_conv <- remove_no_orthol(zf_3dpi_up_conv)
+
+zf_3dpi_down_conv <- convert_genes_zf(zf_3dpi_down_genes)
+zf_3dpi_down_conv <- remove_mt(zf_3dpi_down_conv)
+
+md_3dpi_up_conv <- convert_genes_md(md_3dpi_up_genes)
+md_3dpi_up_conv <- remove_mt(md_3dpi_up_conv)
+md_3dpi_up_conv <- remove_no_orthol(md_3dpi_up_conv)
+
+md_3dpi_down_conv <- convert_genes_md(md_3dpi_down_genes)
+md_3dpi_down_conv <- remove_mt(md_3dpi_down_conv)
+
+p4_3dpi_up_genes <- remove_mt(p4_3dpi_up_genes)
+p4_3dpi_up_genes <- remove_no_orthol(p4_3dpi_up_genes)
+p11_3dpi_up_genes <- remove_mt(p11_3dpi_up_genes)
+p11_3dpi_up_genes <- remove_no_orthol(p11_3dpi_up_genes)
+
+
+zf_up_list <- list( Mouse_p4 = p4_3dpi_up_genes, Zebrafish = zf_3dpi_up_conv, Mouse_p11 = p11_3dpi_up_genes)
+md_up_list <- list( Mouse_p4 = p4_3dpi_up_genes, Medaka = md_3dpi_up_conv, Mouse_p11 = p11_3dpi_up_genes)
+all_up_list <- list( p4 = p4_3dpi_up_genes, zebrafish = zf_3dpi_up_conv,medaka = md_3dpi_up_conv, p11 = p11_3dpi_up_genes)
+
+zf_down_list <- list( Mouse_p4 = p4_3dpi_down_genes, Zebrafish = zf_3dpi_down_conv, Mouse_p11 = p11_3dpi_down_genes)
+md_down_list <- list( Mouse_p4 = p4_3dpi_down_genes, Medaka = md_3dpi_down_conv, Mouse_p11 = p11_3dpi_down_genes)
+all_down_list <- list( p4 = p4_3dpi_down_genes, zebrafish = zf_3dpi_down_conv,medaka = md_3dpi_down_conv, p11 = p11_3dpi_down_genes)
+
+ggVennDiagram(zf_up_list, show_intersect = TRUE)
+ggVennDiagram(md_up_list,show_intersect = TRUE)
+ggVennDiagram(all_up_list,show_intersect = TRUE)
+
+ggVennDiagram(zf_down_list, show_intersect = TRUE)
+ggVennDiagram(md_down_list,show_intersect = TRUE)
+ggVennDiagram(all_down_list,show_intersect = TRUE)
+```
+
