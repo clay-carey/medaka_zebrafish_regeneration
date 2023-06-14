@@ -1,0 +1,611 @@
+---
+title: "Data processing"
+author: "Clay Carey"
+date: "2023-01-31"
+output: pdf_document
+---
+
+load required packages
+```{r}
+library(dplyr)
+library(Seurat)
+library(Nebulosa)
+library(scCustomize)
+library(viridis)
+library(dittoSeq)
+library(grid)
+library(gridExtra)
+```
+Import data from cellranger outputs 
+```{r}
+#Import single-cell data from cellranger outputs for each experiment
+zf.uninj.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_1')
+zf.uninj.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_2')
+zf.uninj.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_3')
+zf.uninj.4.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_4')
+
+md.uninj.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_1')
+md.uninj.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_2')
+md.uninj.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_3')
+md.uninj.4.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_4')
+
+zf.3dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_3dpi_1')
+zf.3dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_3dpi_2')
+zf.3dpi.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_3dpi_3')
+
+md.3dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_3dpi_1')
+md.3dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_3dpi_2')
+md.3dpi.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_3dpi_3')
+
+zf.14dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_1')
+zf.14dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_2')
+zf.14dpi.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_3')
+zf.14dpi.4.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_4')
+zf.14dpi.5.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_5')
+zf.14dpi.6.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_6')
+
+md.14dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_14dpi_1')
+md.14dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_14dpi_2')
+```
+For downstream integration and gene expression analysis, it is important to have consistent naming for genes across both species (as much as possible). We will rely on ensembl orthology assessments to rename medaka genes to the zebrafish gene name (when not already named identically). 
+
+Orthology database pulled from biomart, containing all zebrafish gene names (zf_name) and medaka gene names (md_name). as well as orthology type (type) and score (score). 
+```{r}
+
+#import data
+zf2md <- read.csv(file = "/Users/claytoncarey/Documents/Seurat/zf.cm.markers/zf2md.csv")
+
+#filter to keep only genes that are one2one orthologs and have a passing score (1)
+one2one <- filter(zf2md, type == 'ortholog_one2one' & score == 1)
+
+#only look at cases where the names are different between species
+diffname <- filter(one2one, zf_name != md_name)
+
+#in some cases, the medaka gene name is missing and only has the ensembl id, we then assign md_name as md_ens value
+diffname_ens <- mutate(diffname, md_name = case_when(md_name == "" ~ md_ens, TRUE ~ md_name))
+
+#Remove cases where zebrafish does not have corresponding gene name
+diffname_ens <- filter(diffname_ens, zf_name != "")
+
+#this gives us 596 genes that need to be renamed in medaka 
+
+length(diffname_ens$md_name)
+
+diffname_ens
+```
+
+Now we are going to make a list of all medaka genes, with the correct order and corrected gene names 
+```{r}
+#match gene names from diffname_ens$md_name to the medaka gene list stored in the raw data and return zebrafish names, the dimnames[1] are identical for all medaka raw datasets
+corrected <- diffname_ens$zf_name[match(md.uninj.1.data@Dimnames[[1]],diffname_ens$md_name)]
+#make a vector with both the original medaka gene names, but with the mismatches replaced with the zebrafish gene names
+corrected_md <- ifelse(!is.na(corrected), corrected, md.uninj.1.data@Dimnames[[1]])
+#now we can replace the dimname[1] with corrected_md in each medaka daatset
+
+
+```
+
+```{r}
+md.uninj.1.data@Dimnames[[1]] <- corrected_md
+md.uninj.2.data@Dimnames[[1]] <- corrected_md
+md.uninj.3.data@Dimnames[[1]] <- corrected_md
+md.uninj.4.data@Dimnames[[1]] <- corrected_md
+
+md.3dpi.1.data@Dimnames[[1]] <- corrected_md
+md.3dpi.2.data@Dimnames[[1]] <- corrected_md
+md.3dpi.3.data@Dimnames[[1]] <- corrected_md
+
+md.14dpi.1.data@Dimnames[[1]] <- corrected_md
+md.14dpi.2.data@Dimnames[[1]] <- corrected_md
+```
+
+Create seurat objects and add metadata to each object 
+```{r}
+
+zf.uninj.1 <- CreateSeuratObject(counts = zf.uninj.1.data)
+zf.uninj.1$species <- "zebrafish"
+zf.uninj.1$injury <- "uninjured"
+zf.uninj.1$group <- "zebrafish_uninjured"
+zf.uninj.1$sample <- "zebrafish_uninjured_1"
+rm(zf.uninj.1.data)
+
+zf.uninj.2 <- CreateSeuratObject(counts = zf.uninj.2.data)
+zf.uninj.2$species <- "zebrafish"
+zf.uninj.2$injury <- "uninjured"
+zf.uninj.2$group <- "zebrafish_uninjured"
+zf.uninj.2$sample <- "zebrafish_uninjured_2"
+rm(zf.uninj.2.data)
+
+zf.uninj.3 <- CreateSeuratObject(counts = zf.uninj.3.data)
+zf.uninj.3$species <- "zebrafish"
+zf.uninj.3$injury <- "uninjured"
+zf.uninj.3$group <- "zebrafish_uninjured"
+zf.uninj.3$sample <- "zebrafish_uninjured_3"
+rm(zf.uninj.3.data)
+
+zf.uninj.4 <- CreateSeuratObject(counts = zf.uninj.4.data)
+zf.uninj.4$species <- "zebrafish"
+zf.uninj.4$injury <- "uninjured"
+zf.uninj.4$group <- "zebrafish_uninjured"
+zf.uninj.4$sample <- "zebrafish_uninjured_4"
+rm(zf.uninj.4.data)
+
+md.uninj.1 <- CreateSeuratObject(counts = md.uninj.1.data)
+md.uninj.1$species <- "medaka"
+md.uninj.1$injury <- "uninjured"
+md.uninj.1$group <- "medaka_uninjured"
+md.uninj.1$sample <- "medaka_uninjured_1"
+rm(md.uninj.1.data)
+
+md.uninj.2 <- CreateSeuratObject(counts = md.uninj.2.data)
+md.uninj.2$species <- "medaka"
+md.uninj.2$injury <- "uninjured"
+md.uninj.2$group <- "medaka_uninjured"
+md.uninj.2$sample <- "medaka_uninjured_2"
+rm(md.uninj.2.data)
+
+md.uninj.3 <- CreateSeuratObject(counts = md.uninj.3.data)
+md.uninj.3$species <- "medaka"
+md.uninj.3$injury <- "uninjured"
+md.uninj.3$group <- "medaka_uninjured"
+md.uninj.3$sample <- "medaka_uninjured_3"
+rm(md.uninj.3.data)
+
+md.uninj.4 <- CreateSeuratObject(counts = md.uninj.4.data)
+md.uninj.4$species <- "medaka"
+md.uninj.4$injury <- "uninjured"
+md.uninj.4$group <- "medaka_uninjured"
+md.uninj.4$sample <- "medaka_uninjured_4"
+rm(md.uninj.4.data)
+
+zf.3dpi.1 <- CreateSeuratObject(counts = zf.3dpi.1.data)
+zf.3dpi.1$species <- "zebrafish"
+zf.3dpi.1$injury <- "3dpi"
+zf.3dpi.1$group <- "zebrafish_3dpi"
+zf.3dpi.1$sample <- "zebrafish_3dpi_1"
+rm(zf.3dpi.1.data)
+
+zf.3dpi.2 <- CreateSeuratObject(counts = zf.3dpi.2.data)
+zf.3dpi.2$species <- "zebrafish"
+zf.3dpi.2$injury <- "3dpi"
+zf.3dpi.2$group <- "zebrafish_3dpi"
+zf.3dpi.2$sample <- "zebrafish_3dpi_2"
+rm(zf.3dpi.2.data)
+
+zf.3dpi.3 <- CreateSeuratObject(counts = zf.3dpi.3.data)
+zf.3dpi.3$species <- "zebrafish"
+zf.3dpi.3$injury <- "3dpi"
+zf.3dpi.3$group <- "zebrafish_3dpi"
+zf.3dpi.3$sample <- "zebrafish_3dpi_3"
+rm(zf.3dpi.3.data)
+
+md.3dpi.1 <- CreateSeuratObject(counts = md.3dpi.1.data)
+md.3dpi.1$species <- "medaka"
+md.3dpi.1$injury <- "3dpi"
+md.3dpi.1$group <- "medaka_3dpi"
+md.3dpi.1$sample <- "medaka_3dpi_1"
+rm(md.3dpi.1.data)
+
+md.3dpi.2 <- CreateSeuratObject(counts = md.3dpi.2.data)
+md.3dpi.2$species <- "medaka"
+md.3dpi.2$injury <- "3dpi"
+md.3dpi.2$group <- "medaka_3dpi"
+md.3dpi.2$sample <- "medaka_3dpi_2"
+rm(md.3dpi.2.data)
+
+md.3dpi.3 <- CreateSeuratObject(counts = md.3dpi.3.data)
+md.3dpi.3$species <- "medaka"
+md.3dpi.3$injury <- "3dpi"
+md.3dpi.3$group <- "medaka_3dpi"
+md.3dpi.3$sample <- "medaka_3dpi_3"
+rm(md.3dpi.3.data)
+
+zf.14dpi.1 <- CreateSeuratObject(counts = zf.14dpi.1.data)
+zf.14dpi.1$species <- "zebrafish"
+zf.14dpi.1$injury <- "14dpi"
+zf.14dpi.1$group <- "zebrafish_14dpi"
+zf.14dpi.1$sample <- "zebrafish_14dpi_1"
+rm(zf.14dpi.1.data)
+
+zf.14dpi.2 <- CreateSeuratObject(counts = zf.14dpi.2.data)
+zf.14dpi.2$species <- "zebrafish"
+zf.14dpi.2$injury <- "14dpi"
+zf.14dpi.2$group <- "zebrafish_14dpi"
+zf.14dpi.2$sample <- "zebrafish_14dpi_2"
+rm(zf.14dpi.2.data)
+
+zf.14dpi.3 <- CreateSeuratObject(counts = zf.14dpi.3.data)
+zf.14dpi.3$species <- "zebrafish"
+zf.14dpi.3$injury <- "14dpi"
+zf.14dpi.3$group <- "zebrafish_14dpi"
+zf.14dpi.3$sample <- "zebrafish_14dpi_3"
+rm(zf.14dpi.3.data)
+
+zf.14dpi.4 <- CreateSeuratObject(counts = zf.14dpi.4.data)
+zf.14dpi.4$species <- "zebrafish"
+zf.14dpi.4$injury <- "14dpi"
+zf.14dpi.4$group <- "zebrafish_14dpi"
+zf.14dpi.4$sample <- "zebrafish_14dpi_4"
+rm(zf.14dpi.4.data)
+
+zf.14dpi.5 <- CreateSeuratObject(counts = zf.14dpi.5.data)
+zf.14dpi.5$species <- "zebrafish"
+zf.14dpi.5$injury <- "14dpi"
+zf.14dpi.5$group <- "zebrafish_14dpi"
+zf.14dpi.5$sample <- "zebrafish_14dpi_5"
+rm(zf.14dpi.5.data)
+
+zf.14dpi.6 <- CreateSeuratObject(counts = zf.14dpi.6.data)
+zf.14dpi.6$species <- "zebrafish"
+zf.14dpi.6$injury <- "14dpi"
+zf.14dpi.6$group <- "zebrafish_14dpi"
+zf.14dpi.6$sample <- "zebrafish_14dpi_6"
+rm(zf.14dpi.6.data)
+
+md.14dpi.1 <- CreateSeuratObject(counts = md.14dpi.1.data)
+md.14dpi.1$species <- "medaka"
+md.14dpi.1$injury <- "14dpi"
+md.14dpi.1$group <- "medaka_14dpi"
+md.14dpi.1$sample <- "medaka_14dpi_1"
+rm(md.14dpi.1.data)
+
+md.14dpi.2 <- CreateSeuratObject(counts = md.14dpi.2.data)
+md.14dpi.2$species <- "medaka"
+md.14dpi.2$injury <- "14dpi"
+md.14dpi.2$group <- "medaka_14dpi"
+md.14dpi.2$sample <- "medaka_14dpi_2"
+rm(md.14dpi.2.data)
+
+```
+
+calculate percent mitochondrial RNA for each object, filter cells mostly composed of mitochondrial RNAs. 
+```{r}
+obj.list <- list(zf.uninj.1,zf.uninj.2,zf.uninj.3,zf.uninj.4,zf.3dpi.1,zf.3dpi.2,zf.3dpi.3,zf.14dpi.1,zf.14dpi.2,zf.14dpi.3,zf.14dpi.4,zf.14dpi.5,zf.14dpi.6,md.uninj.1,md.uninj.2,md.uninj.3,md.uninj.4,md.3dpi.1,md.3dpi.2,md.3dpi.3,md.14dpi.1,md.14dpi.2)
+
+for (i in 1:13){
+  obj.list[[i]] <- PercentageFeatureSet(obj.list[[i]], pattern = "^mt-", col.name = "percent.mt")
+}
+
+##mitochondrial genes not included in original medaka annotation, added chromosome mt to assign reads as mitochondrial RNA
+for (i in 14:22){
+  obj.list[[i]] <- PercentageFeatureSet(obj.list[[i]], features= "mt", col.name = "percent.mt")
+}
+
+for (i in 1:22){
+  obj.list[[i]] <- subset(obj.list[[i]], subset = percent.mt < 40 & nFeature_RNA > 200)
+}
+```
+
+save file for import to CHPC
+```{r}
+saveRDS(obj.list, file = '/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/heart_obj.rds')
+```
+
+
+The following code was executed on the utah CHPC cluster to normalize and integrate the datasets quickly. 
+```{r}
+library(Seurat)
+
+heart_obj <- readRDS(file = 'heart_obj.rds')
+
+heart_obj <- lapply(X = heart_obj, FUN = function(x) {
+  x <- NormalizeData(x)
+  x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+})
+
+features <- SelectIntegrationFeatures(object.list = heart_obj)
+
+heart.anchors <- FindIntegrationAnchors(object.list = heart_obj, anchor.features = features)
+
+heart.integrated <- IntegrateData(anchorset = heart.anchors)
+
+saveRDS(heart.integrated, file = 'heart_integrated.rds')
+```
+
+```{r}
+heart_integrated <- readRDS(file = '/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/heart_integrated.rds')
+heart_integrated
+```
+
+```{r}
+DefaultAssay(heart_integrated) <- "integrated"
+heart_integrated <- ScaleData(heart_integrated)
+heart_integrated <- RunPCA(heart_integrated, npcs = 30)
+heart_integrated <- RunUMAP(heart_integrated, dims = 1:25)
+heart_integrated <- FindNeighbors(heart_integrated, reduction = "pca", dims = 1:25)
+heart_integrated <- FindClusters(heart_integrated, resolution = 0.6, algorithm = 2)
+DimPlot(heart_integrated, label = TRUE)
+```
+
+
+
+
+identify RBCs and platelets for removal from dataset
+```{r}
+DefaultAssay(heart_integrated) <- "RNA"
+
+FeaturePlot(heart_integrated, features = 'hbaa1', pt.size = 0.01)
+
+plot_density(heart_integrated, features = 'hbaa1')
+plot_density(heart_integrated, features = 'hbaa2')
+plot_density(heart_integrated, features = 'hbba1')
+plot_density(heart_integrated, features = 'hbba2')
+
+
+plot_density(heart_integrated, features = 'thbs1b')
+plot_density(heart_integrated, features = 'itga2b')
+
+
+
+```
+
+remove clusters 0,9,13,24,8,19 which are RBCs and platelets 
+```{r}
+heart_filtered <- subset(heart_integrated, idents = c(0,9,13,24,8,19), invert = TRUE )
+DimPlot(heart_filtered, label = TRUE)
+```
+
+identify cardiomyocytes
+```{r}
+FeaturePlot(heart_filtered, features = c("myl7","actc1a"))
+```
+
+```{r}
+FeaturePlot(heart_filtered, features = 'percent.mt')
+```
+
+
+```{r}
+heart_filtered@meta.data <- mutate(heart_filtered@meta.data, Cardiomyocyte = case_when(
+  seurat_clusters == 3 ~ 'CM',
+  seurat_clusters == 5 ~ 'CM',
+  seurat_clusters == 10 ~ 'CM',
+  seurat_clusters == 17 ~ 'CM',
+  seurat_clusters == 20 ~ 'CM',
+  TRUE ~ 'Non-CM'
+))
+
+heart_filtered <- subset(heart_filtered, subset = Cardiomyocyte == 'Non-CM' & percent.mt > 15, invert = TRUE)
+
+```
+
+
+Re-run dimension reduction with RBCs/platelts removed, filtered high mt non CMs. 
+```{r}
+DefaultAssay(heart_filtered) <- "integrated"
+heart_filtered <- ScaleData(heart_filtered)
+heart_filtered <- RunPCA(heart_filtered, npcs = 30)
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:25)
+heart_filtered <- FindNeighbors(heart_filtered, reduction = "pca", dims = 1:25)
+heart_filtered <- FindClusters(heart_filtered, resolution = 0.5, algorithm = 2)
+DimPlot(heart_filtered, label = TRUE)
+```
+
+
+
+```{r}
+
+heart_filtered <- subset(heart_filtered, idents = 18, invert = TRUE)
+
+color_vector <- c("#DF7AF5", "#D681BF", "#FF9A5A", "#F7CB4F", "#FF7538", "#88CCEE", "#6776B5", "#FFB072", "#FFC086", "#EB6A7B", "#BD98F5", "#9DC3F6", "#B0AEB5", "#2E446D", "#FF8C49", "#C45DF5","#6685C5" , "#EB4D89", "#F4C2C2", "#FA2E00", "#F49AC2", "#EBA929")
+
+
+DefaultAssay(heart_filtered) <- "integrated"
+heart_filtered <- ScaleData(heart_filtered)
+heart_filtered <- RunPCA(heart_filtered, npcs = 30 )
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:21)
+heart_filtered <- FindNeighbors(heart_filtered, dims = 1:20, reduction = 'pca', n.tree = 500, l2.norm = TRUE )
+heart_filtered <- FindClusters(heart_filtered, resolution = 0.5)
+DimPlot(heart_filtered, label = TRUE, cols = color_vector) +NoLegend()
+
+```
+
+
+cluster 10 high in hemoglobin, low/no expression of epicardial/endocardial markers, likely RBCs 
+```{r}
+DefaultAssay(heart_filtered) <- "RNA"
+FeaturePlot_scCustom(heart_filtered, features = c('fli1a','kdrl','tcf21','hbba1'))
+```
+
+
+
+
+```{r}
+heart_filtered <- subset(heart_filtered, idents = 10, invert = TRUE)
+DefaultAssay(heart_filtered) <- "integrated"
+heart_filtered <- ScaleData(heart_filtered)
+heart_filtered <- RunPCA(heart_filtered, npcs = 30 )
+heart_filtered <- RunUMAP(heart_filtered, dims = 1:30)
+heart_filtered <- FindNeighbors(heart_filtered, dims = 1:20, reduction = 'pca', n.tree = 500, l2.norm = TRUE )
+heart_filtered <- FindClusters(heart_filtered, resolution = 0.5)
+DimPlot(heart_filtered, label = TRUE, cols = color_vector) +NoLegend()
+
+```
+
+
+
+```{r}
+# First, create a vector of 22 unique colors
+my_colors <- c("#B37E91", "#D59FD5", "#E28F75", "#E78F9E", "#8DB3E2", "#93C6C4",
+                "#3E7CB3", "#DFC15A", "#E6C48D", "#B95C80", "#B77DB6", "#B57BAF",
+                "#D68FD6", "#E9929B", "#E695B3", "#B184B7", "#92C3B3", "#B090D7",
+                "#D48DD6", "#8F95D6", "#E6B46D", "#E6C880")
+
+# Then, assign specific colors to the desired clusters
+my_colors[c(3, 4, 8, 7, 15, 20)] <- c("#FFB347", "#FFA500", "#FF8C00", "#FF7F50",
+                                      "#FF6347", "#FF4500")
+                                      
+my_colors[c(22, 11, 6)] <- c("#4DE8D5", "#61FFC0", "#4DE87F")
+
+my_colors[c(1, 2, 10, 13, 16, 18, 19, 21)] <- c("#DA70D6", "#BA55D3", "#9932CC",
+                                                "#8B008B", "#FF69B4", "#FF1493",
+                                                "#C71585", "#FFB6C1")
+my_colors[c(5, 7, 12, 14, 17)] <- c("#1E90FF", "#4169E1", "#87CEFA", "#6495ED",
+                                      "#00BFFF")
+
+# Finally, reorder the colors to match the cluster order
+my_colors <- my_colors[c(1:22)]
+
+           
+DimPlot(heart_filtered, label =FALSE, cols = my_colors, group.by = 'seurat_clusters') + NoLegend() +NoAxes() +ggtitle("")
+```
+
+```{r}
+
+library(dplyr)
+
+
+heart_filtered@meta.data <- mutate(heart_filtered@meta.data, cell_class = case_when(
+seurat_clusters == 0 ~ "Endothelial",
+seurat_clusters == 1 ~ "Endothelial",
+seurat_clusters == 2 ~ "Cardiomyocyte",
+seurat_clusters == 3 ~ "Cardiomyocyte",
+seurat_clusters == 4 ~ "Leukocyte",
+seurat_clusters == 5 ~ "Epicardium",
+seurat_clusters == 6 ~ "Leukocyte",
+seurat_clusters == 7 ~ "Cardiomyocyte",
+seurat_clusters == 8 ~ "Cardiomyocyte",
+seurat_clusters == 9 ~ "Endothelial",
+seurat_clusters == 10 ~ "Epicardium",
+seurat_clusters == 11 ~ "Leukocyte",
+seurat_clusters == 12 ~ "Endothelial",
+seurat_clusters == 13 ~ "Leukocyte",
+seurat_clusters == 14 ~ "Cardiomyocyte",
+seurat_clusters == 15 ~ "Endothelial",
+seurat_clusters == 16 ~ "Leukocyte",
+seurat_clusters == 17 ~ "Endothelial",
+seurat_clusters == 18 ~ "Endothelial",
+seurat_clusters == 19 ~ "Cardiomyocyte",
+seurat_clusters == 20 ~ "Mural",
+seurat_clusters == 21 ~ "Epicardium"
+))
+
+Idents(heart_filtered) <- "cell_class"
+
+DimPlot(heart_filtered, cols = my_colors, label = TRUE)
+
+```
+
+```{r}
+heart_filtered@meta.data <- mutate(heart_filtered@meta.data, cell_class_species = case_when(
+  cell_class == "Endothelium" & species == 'zebrafish' ~ "Endothelium (Zebrafish)",
+  cell_class == "Endothelium" & species == 'medaka' ~ "Endothelium (Medaka)",
+  cell_class == "Epicardium" & species == 'zebrafish' ~ "Epicardium (Zebrafish)",
+  cell_class == "Epicardium" & species == 'medaka' ~ "Epicardium (Medaka)",
+  cell_class == "Cardiomyocyte" & species == 'zebrafish' ~ "Cardiomyocyte (Zebrafish)",
+  cell_class == "Cardiomyocyte" & species == 'medaka' ~ "Cardiomyocyte (Medaka)",
+  cell_class == "Leukocyte" & species == 'zebrafish' ~ "Leukocyte (Zebrafish)",
+  cell_class == "Leukocyte" & species == 'medaka' ~ "Leukocyte (Medaka)",
+  cell_class == "Mural" & species == 'zebrafish' ~ "Mural (Zebrafish)",
+  cell_class == "Mural" & species == 'medaka' ~ "Mural (Medaka)"
+))
+```
+
+```{r}
+heart_filtered@meta.data <- mutate(heart_filtered@meta.data, cell_cluster = case_when(
+seurat_clusters == 0 ~ "EC1",
+seurat_clusters == 1 ~ "EC2",
+seurat_clusters == 2 ~ "CM1",
+seurat_clusters == 3 ~ "CM2",
+seurat_clusters == 4 ~ "LC1",
+seurat_clusters == 5 ~ "EP1",
+seurat_clusters == 6 ~ "LC2",
+seurat_clusters == 7 ~ "CM3",
+seurat_clusters == 8 ~ "CM4",
+seurat_clusters == 9 ~ "EC3",
+seurat_clusters == 10 ~ "EP2",
+seurat_clusters == 11 ~ "LC3",
+seurat_clusters == 12 ~ "EC4",
+seurat_clusters == 13 ~ "LC4",
+seurat_clusters == 14 ~ "CM5",
+seurat_clusters == 15 ~ "EC5",
+seurat_clusters == 16 ~ "LC5",
+seurat_clusters == 17 ~ "EC6",
+seurat_clusters == 18 ~ "EC7",
+seurat_clusters == 19 ~ "CM6",
+seurat_clusters == 20 ~ "MC1",
+seurat_clusters == 21 ~ "EP3"
+))
+```
+
+
+
+```{r}
+##factor object to reorder x axis 
+my_levels <- c("Cardiomyocyte","Endothelial","Epicardium","Mural","Leukocyte")
+heart_filtered@meta.data$cell_class <- factor(x = heart_filtered@meta.data$cell_class, levels = my_levels)
+DefaultAssay(heart_filtered) <- 'RNA'
+Idents(heart_filtered) <- 'cell_class'
+pan_markers <- c("myl7","actc1a","fli1a","kdrl","tcf21","tbx18","pdgfrb","rgs5a","coro1a","ptprc")
+
+DotPlot(heart_filtered, features = pan_markers, scale = TRUE) +
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.5) +
+  scale_colour_viridis(option="plasma") +
+  guides(size=guide_legend(override.aes=list(shape=21, colour="black", fill="white"))) + theme(axis.text.x = element_text(angle =45,hjust = 1)) + theme(legend.title = element_text( size = 8))
+
+
+```
+
+
+
+
+```{r}
+vln_color_pastel <- c("#B3BBFF","#A0F8FF","#8AB9D9","#FF9E8A","#FFE8C0","#FFBFBD")
+
+dittoDimPlot(heart_filtered, "group", split.by = "group", color.panel = vln_color_pastel)
+```
+
+```{r}
+all.meta <- heart_filtered@meta.data
+
+enum_cells <- function(x){
+  
+  cells <- filter(all.meta, group == x)
+
+  print(paste0(x, ": ", nrow(cells)))
+
+}
+
+enum_cells("zebrafish_uninjured")
+enum_cells("zebrafish_3dpi")
+enum_cells("zebrafish_14dpi")
+enum_cells("medaka_uninjured")
+enum_cells("medaka_3dpi")
+enum_cells("medaka_14dpi")
+
+```
+
+
+```{r}
+Idents(heart_filtered) <- "species"
+
+
+heart_filtered_zf <- subset(heart_filtered, idents = "zebrafish")
+
+heart_filtered_md <- subset(heart_filtered, idents = 'medaka')
+
+
+my_levels <- c("Cardiomyocyte","Endothelial","Epicardium","Mural","Leukocyte")
+heart_filtered_zf@meta.data$cell_class <- factor(x = heart_filtered_zf@meta.data$cell_class, levels = my_levels)
+
+my_levels <- c("Cardiomyocyte","Endothelial","Epicardium","Mural","Leukocyte")
+heart_filtered_md@meta.data$cell_class <- factor(x = heart_filtered_md@meta.data$cell_class, levels = my_levels)
+
+DefaultAssay(heart_filtered_zf) <- 'RNA'
+Idents(heart_filtered_zf) <- 'cell_class'
+pan_markers <- c("myl7","actc1a","fli1a","kdrl","tcf21","tbx18","pdgfrb","rgs5a","coro1a","ptprc")
+p1 <- DotPlot(heart_filtered_zf, features = pan_markers, scale = TRUE)+
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.5) +
+  scale_colour_viridis(option="plasma") +
+  guides(size=guide_legend(override.aes=list(shape=21, colour="black", fill="white"))) + theme(axis.text.x =    element_text(angle =45,hjust = 1)) + theme(legend.title = element_text( size = 8))+ xlab(element_blank()) + ylab(element_blank())
+
+DefaultAssay(heart_filtered_md) <- 'RNA'
+Idents(heart_filtered_md) <- 'cell_class'
+p2 <- DotPlot(heart_filtered_md, features = pan_markers, scale = TRUE)+
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.5) +
+  scale_colour_viridis(option="plasma") +
+  guides(size=guide_legend(override.aes=list(shape=21, colour="black", fill="white"))) + theme(axis.text.x =    element_text(angle =45,hjust = 1)) + theme(legend.title = element_text( size = 8)) + xlab(element_blank()) + ylab(element_blank())
+
+grid.arrange(p1,p2,ncol=1,nrow=2)
+```
+
