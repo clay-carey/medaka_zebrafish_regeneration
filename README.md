@@ -12,3 +12,12 @@ We have hosted the application on shinyapps.io, but application usage may be res
 
 ## Code
 R markdown code used to process data and generate all figures for the manuscript can be accessed in the [Final_code folder](https://github.com/clay-carey/medaka_zebrafish_regeneration/tree/master/Final_code)
+
+## Data
+
+### Raw data
+Raw sequencing data for each sample can be accessed here
+
+### Processed Data
+Processed gene expression matricies for each sample can be accessed HERE 
+Integrated data are available as individual seurat files are available HERE
