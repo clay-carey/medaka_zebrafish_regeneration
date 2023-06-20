@@ -11,7 +11,7 @@ You can easily explore the single-cell data using our [web-based application](ht
 We have hosted the application on shinyapps.io, but application usage may be restricted. You can run the app locally by downloading the files HERE. 
 
 ## Code
-R markdown code used to process data and generate all figures for the manuscript can be accessed in the [Final_code folder](https://github.com/clay-carey/medaka_zebrafish_regeneration/tree/master/Final_code)
+R markdown code used to process data and generate all figures for the manuscript can be accessed in the [Final_code folder](https://github.com/clay-carey/medaka_zebrafish_regeneration/tree/master/Figure_code)
 
 ## Data
 
