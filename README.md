@@ -8,7 +8,11 @@ Adult humans respond to heart injury by forming a permanent scar, yet other vert
 
 You can easily explore the single-cell data using our [web-based application](https://clay-carey.shinyapps.io/shinyappmulti/)
 
-We have hosted the application on shinyapps.io, but application usage may be restricted. You can run the app locally by downloading the files HERE. 
+
+### Instructions for running shiny app locally 
+
+We have hosted the application on shinyapps.io, but application usage may be restricted because of hosting limitations. You can run the app locally by downloading the files [HERE](https://drive.google.com/file/d/1_ozLnMI0p6lKsDA3-HJK5Kk_g3bUTLNk/view?usp=sharing) 
+
 
 ## Code
 R markdown code used to process data and generate all figures for the manuscript can be accessed in the [Final_code folder](https://github.com/clay-carey/medaka_zebrafish_regeneration/tree/master/Figure_code)
@@ -22,13 +26,15 @@ Raw sequencing data for each sample will be available on GEO
 
 Filtered gene expression matricies outputted from cellranger for each sample can be downloaded [HERE](https://drive.google.com/file/d/1xyXq2gEw2FoUiTgZ2ASK8SgNoF0Ty5Ep/view?usp=sharing) 
 
+### Seurat Objects
+
 The following seurat objects are available for download:
 
-1. Minimally processed pre-filtering integrated object containing all cells [DOWNLOAD]
-2. Processed and filtered object containing all passing non-erythroid cells [DOWNLOAD]
-3. Filtered and Re-clustered immune cells object [DOWNLOAD] 
+1. Minimally processed pre-filtering integrated object containing all cells [DOWNLOAD](https://drive.google.com/file/d/1tfOJucadM0K_H71mBHMEIAkovb3zXBoy/view?usp=sharing)
+2. Processed and filtered object containing all passing non-erythroid cells [DOWNLOAD](https://drive.google.com/file/d/1BDY7xhIuDlJBV5UAQ8brCN6rxLN6wtsX/view?usp=sharing)
+3. Filtered and Re-clustered immune cells object [DOWNLOAD]
 4. Filtered and Re-clustered endothelial cells object [DOWNLOAD]
 5. Filtered and Re-clustered epicardial cells object [DOWNLOAD]
 6. Filtered and Re-clustered cardiomyocytes object [DOWNLOAD]
 7. Filtered and clustered cardiomyocytes (zebrafish uninjured only)[DOWNLOAD]
-7. Filtered and clustered cardiomyocytes (medaka uninjured only)[DOWNLOAD]
+8. Filtered and clustered cardiomyocytes (medaka uninjured only)[DOWNLOAD]
