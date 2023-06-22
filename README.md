@@ -11,8 +11,18 @@ You can easily explore the single-cell data using our [web-based application](ht
 
 ### Instructions for running shiny app locally 
 
-We have hosted the application on shinyapps.io, but application usage may be restricted because of hosting limitations. You can run the app locally by downloading the files [HERE](https://drive.google.com/file/d/1_ozLnMI0p6lKsDA3-HJK5Kk_g3bUTLNk/view?usp=sharing) 
+We have hosted the application on shinyapps.io, but application usage may be restricted because of hosting limitations. You can run the app locally in R by downloading the files [HERE](https://drive.google.com/file/d/1_ozLnMI0p6lKsDA3-HJK5Kk_g3bUTLNk/view?usp=sharing) 
 
+Before running the app, run the following code to ensure all required packages are installed: 
+
+``` r
+reqPkg = c("shiny", "shinyhelper", "data.table", "Matrix", "DT", "hdf5r", 
+           "reticulate", "ggplot2", "gridExtra", "magrittr", "ggdendro")
+newPkg = reqPkg[!(reqPkg %in% installed.packages()[,"Package"])]
+if(length(newPkg)){install.packages(newPkg)}
+```
+
+Once installed, extract the .zip file and open the server.R file in Rstudio and click the "run app" button
 
 ## Code
 R markdown code used to process data and generate all figures for the manuscript can be accessed in the [Final_code folder](https://github.com/clay-carey/medaka_zebrafish_regeneration/tree/master/Figure_code)
