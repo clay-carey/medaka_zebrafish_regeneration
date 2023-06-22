@@ -409,9 +409,7 @@ zf_up_list <- list( Mouse_p4 = p4_3dpi_up_genes, Zebrafish = zf_3dpi_up_conv, Mo
 md_up_list <- list( Mouse_p4 = p4_3dpi_up_genes, Medaka = md_3dpi_up_conv, Mouse_p11 = p11_3dpi_up_genes)
 all_up_list <- list( p4 = p4_3dpi_up_genes, zebrafish = zf_3dpi_up_conv,medaka = md_3dpi_up_conv, p11 = p11_3dpi_up_genes)
 
-zf_down_list <- list( Mouse_p4 = p4_3dpi_down_genes, Zebrafish = zf_3dpi_down_conv, Mouse_p11 = p11_3dpi_down_genes)
-md_down_list <- list( Mouse_p4 = p4_3dpi_down_genes, Medaka = md_3dpi_down_conv, Mouse_p11 = p11_3dpi_down_genes)
-all_down_list <- list( p4 = p4_3dpi_down_genes, zebrafish = zf_3dpi_down_conv,medaka = md_3dpi_down_conv, p11 = p11_3dpi_down_genes)
+
 
 p2 <- ggVennDiagram(zf_up_list, label = "count", edge_lty = 0) + scale_fill_viridis(option = 'plasma', limits = c(0,50))
 
@@ -420,3 +418,32 @@ p1 <- ggVennDiagram(md_up_list, label = "count", edge_lty = 0) + scale_fill_viri
 grid.arrange(p2,p1, ncol = 1, nrow = 2)
 
 ```
+
+
+
+```{r}
+p4.combined@meta.data$group <- p4.combined@meta.data$orig.ident
+p11.combined@meta.data$group <- p11.combined@meta.data$orig.ident
+all.merge <- merge(myocardium, y = p4.combined)
+all.merge <- merge(all.merge, p11.combined)
+all.merge <- subset(all.merge, subset = injury != "14dpi")
+head(all.merge)
+```
+
+```{r}
+vln_3dpi <- c("#B3BBFF","#A0F8FF", "#FF9E8A" ,"#FFE8C0")
+ms_color <- c("#f799d7", "#f7baf7", "#a2f1c7", "#a9f9ec")
+
+Idents(all.merge) <- 'group'
+DefaultAssay(all.merge) <- "RNA"
+
+
+p1 <- Stacked_VlnPlot(all.merge, features = c ('vcp','clic4','tmod1','hspb1','ldha','slmapa','cdh13','sdha','sgcd'),idents = c("zebrafish_uninjured","medaka_3dpi","medaka_uninjured","zebrafish_3dpi"), colors_use = vln_3dpi,  x_lab_rotate = TRUE)
+
+p2 <- Stacked_VlnPlot(all.merge, features = c('Vcp',"Clic4","Tmod1","Hspb1","Ldha","Slmap","Cdh13","Sdha","Sgcd"), pt.size = 0, idents = c("p4.sham","p4.3dpi","p11.sham","p11.3dpi"), colors_use = ms_color, x_lab_rotate = TRUE)
+
+p1
+p2
+
+```
+
