@@ -16,7 +16,7 @@ library(gridExtra)
 library(gridtext)
 library(grid)
 
-heart_filtered <- readRDS(file = "/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/Final_code/heart_filtered.rds")
+heart_filtered <- readRDS(file = "heart_filtered.rds")
 
 ```
 
@@ -115,19 +115,142 @@ zf_macro_cols <- c("#B3BBFF","#A0F8FF","#8AB9D9","#A0F8FF","#8AB9D9")
 md_macro_cols <- c("#FF9E8A","#FFE8C0","#FFBFBD","#FFE8C0","#FFBFBD")
 
 ZFmpegpos <- c(368,265,895,717,467,319,327,2934,2900,2810,222,160,334,1311,2332,2405)
-ZFcondition <- c("Uninjured","Uninjured","Uninjured","Uninjured","3 d.p.i","3 d.p.i","3 d.p.i","3 d.p.i ","3 d.p.i ","3 d.p.i ","14 d.p.i","14 d.p.i","14 d.p.i","14 d.p.i ","14 d.p.i ","14 d.p.i ")
+ZFcondition <- c("Uninjured_vent","Uninjured_vent","Uninjured_vent","Uninjured_vent","3 d.p.i_vent","3 d.p.i_vent","3 d.p.i_vent","3 d.p.i_scar","3 d.p.i_scar","3 d.p.i_scar","14 d.p.i_vent","14 d.p.i_vent","14 d.p.i_vent","14 d.p.i_scar","14 d.p.i_scar","14 d.p.i_scar")
 ZFtotalmpeg <- data.frame(ZFmpegpos,ZFcondition)
-ZFtotalmpeg$ZFcondition <- factor(ZFtotalmpeg$ZFcondition , levels=c("Uninjured", "3 d.p.i","14 d.p.i","3 d.p.i ","14 d.p.i "))
+ZFtotalmpeg$ZFcondition <- factor(ZFtotalmpeg$ZFcondition , levels=c("Uninjured_vent", "3 d.p.i_vent","14 d.p.i_vent","3 d.p.i_scar","14 d.p.i_scar"))
 
-boxplot(ZFtotalmpeg$ZFmpegpos~ZFtotalmpeg$ZFcondition, data=ZFtotalmpeg, main = "Zebrafish",xlab="Condition",ylab="Number mpeg+cells/mm", col=zf_macro_cols,ylim = c(0,3000))
+boxplot(ZFtotalmpeg$ZFmpegpos~ZFtotalmpeg$ZFcondition, data=ZFtotalmpeg, main = "Zebrafish",xlab="Condition",ylab="Number of mpeg+ cells/mm^2", col=zf_macro_cols,ylim = c(0,3000))
 
 MDmpegpos <- c(1186,783,1159,227,340,150,751,1502,981,314,467,190,2159,1426,786)
-MDcondition <- c("Uninjured","Uninjured","Uninjured","3 d.p.i","3 d.p.i","3 d.p.i","3 d.p.i ","3 d.p.i ","3 d.p.i ","14 d.p.i","14 d.p.i","14 d.p.i","14 d.p.i ","14 d.p.i ","14 d.p.i ")
+MDcondition <- c("Uninjured_vent","Uninjured_vent","Uninjured_vent","3 d.p.i_vent","3 d.p.i_vent","3 d.p.i_vent","3 d.p.i_scar","3 d.p.i_scar","3 d.p.i_scar","14 d.p.i_vent","14 d.p.i_vent","14 d.p.i_vent","14 d.p.i_scar","14 d.p.i_scar","14 d.p.i_scar")
+
 MDtotalmpeg <- data.frame(MDmpegpos,MDcondition)
-MDtotalmpeg$MDcondition <- factor(MDtotalmpeg$MDcondition,levels = c("Uninjured", "3 d.p.i","14 d.p.i","3 d.p.i ","14 d.p.i "))
+MDtotalmpeg$MDcondition <- factor(MDtotalmpeg$MDcondition,levels = c("Uninjured_vent", "3 d.p.i_vent","14 d.p.i_vent","3 d.p.i_scar","14 d.p.i_scar"))
 
-boxplot(MDtotalmpeg$MDmpegpos~MDtotalmpeg$MDcondition, data=MDtotalmpeg, main = "Medaka",xlab="Condition",ylab="Number mpeg+cells/mm", col=md_macro_cols,ylim = c(0,3000)) 
+boxplot(MDtotalmpeg$MDmpegpos~MDtotalmpeg$MDcondition, data=MDtotalmpeg, main = "Medaka",xlab="Condition",ylab="Number of mpeg+ cells/mm^2", col=md_macro_cols,ylim = c(0,3000)) 
 
+
+```
+
+```{r}
+uninj_col <- c("#B3BBFF","#FF9E8A")
+Uninj_mpegpos <- c(368,265,895,717,1186,783,1159)
+Uninj_condition <- c("Uninjured_zf","Uninjured_zf","Uninjured_zf","Uninjured_zf","Uninjured_md","Uninjured_md","Uninjured_md")
+Uninj_totalmpeg <- data.frame(Uninj_mpegpos,Uninj_condition)
+Uninj_totalmpeg$Uninj_condition <- factor(Uninj_totalmpeg$Uninj_condition , levels=c("Uninjured_zf", "Uninjured_md"))
+
+boxplot(Uninj_totalmpeg$Uninj_mpegpos~Uninj_totalmpeg$Uninj_condition, data=Uninj_totalmpeg, main = "Macrophages",xlab="Condition",ylab="Number of mpeg+ cells/mm^2", col=uninj_col,ylim = c(0,1500))
+
+# Subset the data for each condition
+zf <- subset(Uninj_totalmpeg, Uninj_condition == "Uninjured_zf")
+md <- subset(Uninj_totalmpeg, Uninj_condition == "Uninjured_md")
+
+# Perform t-test
+result <- t.test(zf$Uninj_mpegpos, md$Uninj_mpegpos, var.equal = FALSE)
+
+# Print the result
+print(result)
+```
+
+```{r}
+uninj_col <- c("#B3BBFF","#FF9E8A")
+lckpos <- c(85,188,126,379,222,694)
+condition <- c("Uninjured_zf","Uninjured_zf","Uninjured_zf","Uninjured_md","Uninjured_md","Uninjured_md")
+totallck <- data.frame(lckpos,condition)
+totallck$condition <- factor(totallck$condition , levels=c("Uninjured_zf","Uninjured_md"))
+boxplot(totallck$lckpos~totallck$condition, data=totallck, main = "T cells",xlab="Condition",ylab="Number lck+ cells/mm^2",col=uninj_col)
+
+# Subset the data for each condition
+zf <- subset(totallck, condition == "Uninjured_zf")
+md <- subset(totallck, condition == "Uninjured_md")
+
+# Perform t-test
+result <- t.test(zf$lckpos, md$lckpos)
+
+# Print the result
+print(result)
+
+```
+
+
+```{r}
+
+# Subset the data for "Uninjured_vent" condition
+uninjured_vent <- MDtotalmpeg$MDmpegpos[MDtotalmpeg$MDcondition == "Uninjured_vent"]
+
+# Perform pairwise t-tests
+conditions <- levels(MDtotalmpeg$MDcondition)
+conditions <- conditions[conditions != "Uninjured_vent"]  # Exclude "Uninjured_vent"
+
+results <- list()
+
+for (condition in conditions) {
+  subset_data <- MDtotalmpeg$MDmpegpos[MDtotalmpeg$MDcondition == condition]
+  test_result <- t.test(uninjured_vent, subset_data)
+  results[[condition]] <- test_result
+}
+
+# Print the results
+for (condition in conditions) {
+  result <- results[[condition]]
+  cat("Comparison between Medaka 'Uninjured_vent' and '", condition, "':\n")
+  cat("p-value:", result$p.value, "\n")
+  cat("\n")
+}
+
+
+# Subset the data for "Uninjured_vent" condition
+uninjured_vent <- ZFtotalmpeg$ZFmpegpos[ZFtotalmpeg$ZFcondition == "Uninjured_vent"]
+
+# Perform pairwise t-tests
+conditions <- levels(ZFtotalmpeg$ZFcondition)
+conditions <- conditions[conditions != "Uninjured_vent"]  # Exclude "Uninjured_vent"
+
+results <- list()
+
+for (condition in conditions) {
+  subset_data <- ZFtotalmpeg$ZFmpegpos[ZFtotalmpeg$ZFcondition == condition]
+  test_result <- t.test(uninjured_vent, subset_data)
+  results[[condition]] <- test_result
+}
+
+# Print the results
+for (condition in conditions) {
+  result <- results[[condition]]
+  cat("Comparison between Zebrafish 'Uninjured_vent' and '", condition, "':\n")
+  cat("p-value:", result$p.value, "\n")
+  cat("\n")
+}
+
+
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Add Species column to ZFtotalmpeg and MDtotalmpeg
+ZFtotalmpeg <- ZFtotalmpeg %>% mutate(Species = "Zebrafish")
+MDtotalmpeg <- MDtotalmpeg %>% mutate(Species = "Medaka")
+
+# Merge the data frames
+totalmpeg <- bind_rows(ZFtotalmpeg, MDtotalmpeg)
+
+# Set factor levels for condition
+totalmpeg$condition <- factor(totalmpeg$condition,
+                              levels = c("Uninjured", "3 d.p.i", "14 d.p.i", "3 d.p.i ", "14 d.p.i "))
+
+# Create a grouped boxplot using ggplot2
+ggplot(totalmpeg, aes(x = condition, y = ZFmpegpos, fill = Species)) +
+  geom_boxplot(position = position_dodge(width = 0.75)) +
+  labs(title = "Zebrafish and Medaka",
+       x = "Condition",
+       y = "Number mpeg+ cells/mm") +
+  scale_fill_manual(values = c(zf_macro_cols, md_macro_cols)) +
+  ylim(0, 3000) +
+  geom_boxplot(data = totalmpeg, aes(x = condition, y = MDmpegpos, fill = Species),
+               width = 0.75, position = position_dodge(width = 0.75))
 
 
 ```
