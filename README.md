@@ -46,5 +46,5 @@ The following seurat objects are available for download:
 4. Filtered and Re-clustered endothelial cells object [DOWNLOAD](https://drive.google.com/file/d/1xfEOwRVPS0TzkYHl_zKJeBceXcNYHLg2/view?usp=sharing)
 5. Filtered and Re-clustered epicardial cells object [DOWNLOAD](https://drive.google.com/file/d/14cxubuzqTuU35q_NBlORmunwlXjdGegQ/view?usp=sharing)
 6. Filtered and Re-clustered cardiomyocytes object [DOWNLOAD](https://drive.google.com/file/d/1GoV6nmDHoeOnAw68kLYfmUit2XQUK3YR/view?usp=sharing)
-7. Filtered and clustered cardiomyocytes (zebrafish uninjured only)[DOWNLOAD]
-8. Filtered and clustered cardiomyocytes (medaka uninjured only)[DOWNLOAD]
+7. Filtered and clustered cardiomyocytes (zebrafish uninjured only)[DOWNLOAD](https://drive.google.com/file/d/1wXLuwvISGBHkXH7lArK3qdkLsizWmDUG/view?usp=sharing)
+8. Filtered and clustered cardiomyocytes (medaka uninjured only)[DOWNLOAD](https://drive.google.com/file/d/1DQUlaI8tCJsv-Gg85LcCY4c6I7aQybr4/view?usp=sharing)
