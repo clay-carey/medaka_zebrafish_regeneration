@@ -6,7 +6,7 @@ Adult humans respond to heart injury by forming a permanent scar, yet other vert
 
 ## Explore Data With Shiny app
 
-You can easily explore the single-cell data using our [web-based application](https://clay-carey.shinyapps.io/shinyappmulti/)
+You can easily explore the single-cell data using our [web-based application](https://clay-carey.shinyapps.io/shinyappmulti2/)
 
 
 ### Instructions for running shiny app locally 
