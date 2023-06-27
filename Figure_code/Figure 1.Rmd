@@ -18,6 +18,7 @@ library(grid)
 library(gridExtra)
 
 ```
+
 Import gene expression matricies produced by cellranger for each samples. You will need to replace file paths with your own to reproduce results. See github page for data download instructions. 
 
 ```{r}
@@ -463,6 +464,7 @@ my_colors <- my_colors[c(1:22)]
            
 DimPlot(heart_filtered, label =FALSE, cols = my_colors, group.by = 'seurat_clusters') + NoLegend() +NoAxes() +ggtitle("")
 ```
+
 Enumerate cells in each group. 
 ```{r}
 all.meta <- heart_filtered@meta.data
