@@ -1,10 +1,10 @@
 ---
 title: "Immune analysis - Figure 3"
 author: "Clay Carey"
-date: "2023-06-14"
 output: html_document
 ---
 
+Load required packages and processed whole ventricle dataset
 ```{r}
 library(ggplot2)
 library(Seurat)
@@ -20,11 +20,12 @@ heart_filtered <- readRDS(file = "heart_filtered.rds")
 
 ```
 
+
 ```{r}
 Idents(heart_filtered) <- "seurat_clusters"
 DimPlot(heart_filtered, label = TRUE)
 ```
-
+subset previously identified leukocyte cell clusters and re-cluster cells 
 ```{r}
 Idents(heart_filtered) <- "seurat_clusters"
 immune <- subset(heart_filtered, idents = c(4,6,11,13,16))
@@ -44,6 +45,8 @@ immune <- RunUMAP(immune, dims = 1:22, n.epochs = 500)
 DimPlot(immune)
 
 ```
+
+Assign cell types based on marker gene expression (see below), and make UMAP plot
 ```{r}
 
 immune@meta.data <- mutate(immune@meta.data, cell_ID = case_when(
@@ -57,6 +60,25 @@ immune@meta.data <- mutate(immune@meta.data, cell_ID = case_when(
 Idents(immune) <- "cell_ID"
 DimPlot(immune, cols = immune.colors, label = TRUE) + NoLegend() + NoAxes()
 ```
+Make dotplot of marker gene expression for all immune cell types
+```{r}
+my_levels <- c("MF1","MF2","GN","BL","TL")
+
+immune@meta.data$cell_ID <- factor(x = immune@meta.data$cell_ID, levels = my_levels)
+
+Idents(immune) <- 'cell_ID'
+DefaultAssay(immune) <- "RNA"
+immune_dots <- c("cxcr3.2",'lgmn','mki67','pcna','mpx','lyz','cd79a','pax5','lck','zap70')
+DotPlot(immune, features = immune_dots, scale = TRUE) +
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.5) +
+  scale_colour_viridis(option="plasma") +
+  guides(size=guide_legend(override.aes=list(shape=21, colour="black", fill="white"))) + theme(axis.text.x =    element_text(angle =45,hjust = 1)) + theme(legend.title = element_text( size = 8))
+
+```
+
+
+
+
 
 ```{r}
 vln_color_pastel <- c("#B3BBFF","#A0F8FF","#8AB9D9","#FF9E8A","#FFE8C0","#FFBFBD")
@@ -106,7 +128,7 @@ p3 <- p2 + annotation_custom(zf_gorb) + annotation_custom(md_gorb) + annotation_
 
 grid.arrange(p0,p3, ncol = 1, nrow = 2, padding = 0)
 ```
-
+Make boxplots of macrophage quantification. Observations are based on cellprofiler image analysis (see methods)
 ```{r}
 
 vln_color_pastel <- c("#B3BBFF","#A0F8FF","#8AB9D9","#FF9E8A","#FFE8C0","#FFBFBD")
@@ -132,47 +154,9 @@ boxplot(MDtotalmpeg$MDmpegpos~MDtotalmpeg$MDcondition, data=MDtotalmpeg, main = 
 
 ```
 
-```{r}
-uninj_col <- c("#B3BBFF","#FF9E8A")
-Uninj_mpegpos <- c(368,265,895,717,1186,783,1159)
-Uninj_condition <- c("Uninjured_zf","Uninjured_zf","Uninjured_zf","Uninjured_zf","Uninjured_md","Uninjured_md","Uninjured_md")
-Uninj_totalmpeg <- data.frame(Uninj_mpegpos,Uninj_condition)
-Uninj_totalmpeg$Uninj_condition <- factor(Uninj_totalmpeg$Uninj_condition , levels=c("Uninjured_zf", "Uninjured_md"))
-
-boxplot(Uninj_totalmpeg$Uninj_mpegpos~Uninj_totalmpeg$Uninj_condition, data=Uninj_totalmpeg, main = "Macrophages",xlab="Condition",ylab="Number of mpeg+ cells/mm^2", col=uninj_col,ylim = c(0,1500))
-
-# Subset the data for each condition
-zf <- subset(Uninj_totalmpeg, Uninj_condition == "Uninjured_zf")
-md <- subset(Uninj_totalmpeg, Uninj_condition == "Uninjured_md")
-
-# Perform t-test
-result <- t.test(zf$Uninj_mpegpos, md$Uninj_mpegpos, var.equal = FALSE)
-
-# Print the result
-print(result)
-```
-
-```{r}
-uninj_col <- c("#B3BBFF","#FF9E8A")
-lckpos <- c(85,188,126,379,222,694)
-condition <- c("Uninjured_zf","Uninjured_zf","Uninjured_zf","Uninjured_md","Uninjured_md","Uninjured_md")
-totallck <- data.frame(lckpos,condition)
-totallck$condition <- factor(totallck$condition , levels=c("Uninjured_zf","Uninjured_md"))
-boxplot(totallck$lckpos~totallck$condition, data=totallck, main = "T cells",xlab="Condition",ylab="Number lck+ cells/mm^2",col=uninj_col)
-
-# Subset the data for each condition
-zf <- subset(totallck, condition == "Uninjured_zf")
-md <- subset(totallck, condition == "Uninjured_md")
-
-# Perform t-test
-result <- t.test(zf$lckpos, md$lckpos)
-
-# Print the result
-print(result)
-
-```
 
 
+Perform statistical analysis of macrophage #s
 ```{r}
 
 # Subset the data for "Uninjured_vent" condition
@@ -226,35 +210,9 @@ for (condition in conditions) {
 ```
 
 
-```{r}
-library(ggplot2)
-library(dplyr)
-
-# Add Species column to ZFtotalmpeg and MDtotalmpeg
-ZFtotalmpeg <- ZFtotalmpeg %>% mutate(Species = "Zebrafish")
-MDtotalmpeg <- MDtotalmpeg %>% mutate(Species = "Medaka")
-
-# Merge the data frames
-totalmpeg <- bind_rows(ZFtotalmpeg, MDtotalmpeg)
-
-# Set factor levels for condition
-totalmpeg$condition <- factor(totalmpeg$condition,
-                              levels = c("Uninjured", "3 d.p.i", "14 d.p.i", "3 d.p.i ", "14 d.p.i "))
-
-# Create a grouped boxplot using ggplot2
-ggplot(totalmpeg, aes(x = condition, y = ZFmpegpos, fill = Species)) +
-  geom_boxplot(position = position_dodge(width = 0.75)) +
-  labs(title = "Zebrafish and Medaka",
-       x = "Condition",
-       y = "Number mpeg+ cells/mm") +
-  scale_fill_manual(values = c(zf_macro_cols, md_macro_cols)) +
-  ylim(0, 3000) +
-  geom_boxplot(data = totalmpeg, aes(x = condition, y = MDmpegpos, fill = Species),
-               width = 0.75, position = position_dodge(width = 0.75))
 
 
-```
-
+Quantify proportion of macrophges that have detectible amount of tnfa expression
 ```{r}
 
 tnfa_pos <- subset(macrophages, subset = tnfa > 0)
@@ -266,10 +224,7 @@ all_meta <- macrophages@meta.data
 all_meta$cell_id <- row.names(all_meta)
 all_meta <- left_join(all_meta, tnfa_cells, by = 'cell_id')
 row.names(all_meta) <- all_meta$cell_id
-
 all_meta <- select(all_meta, -cell_id)
-all_meta
-
 macro_filt_tnfa <- macrophages
 macro_filt_tnfa@meta.data <- all_meta
 
@@ -277,17 +232,18 @@ my_levels <- c("zebrafish_uninjured","zebrafish_3dpi","zebrafish_14dpi","medaka_
 macro_filt_tnfa@meta.data$group <- factor(x = macro_filt_tnfa@meta.data$group, levels = my_levels)
 
 
-# Create a text grob
+# Create text grobs for figure formatting 
 zf_gorb <- textGrob("Zebrafish (d.p.i.)", x = unit(.26, "npc"), y = unit(-1.4, "cm"), just = "center", gp = gpar(fontsize = 16))
 zf_line <- linesGrob(x = unit(c(0.05, 0.47), "npc"), y = unit(c(-1, -1), "cm"), gp = gpar(col = "black", lwd = 3))
 
 md_gorb <- textGrob("Medaka (d.p.i.)", x = unit(0.74, "npc"), y = unit(-1.4, "cm"), just = "center", gp = gpar(fontsize = 16))
 md_line <- linesGrob(x = unit(c(0.53, 0.95), "npc"), y = unit(c(-1, -1), "cm"), gp = gpar(col = "black", lwd = 3))
 
-Idents(macrophages) <- "seurat_clusters"
 
 
-  
+## Use dittoseq package to plot proportion of tnfa pos cells in each sample 
+
+
 p2 <- dittoFreqPlot(macro_filt_tnfa, "tnfa_pos", sample.by = 'sample', group.by = 'group',color.panel = vln_color_pastel,boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Proportion of macrophages cells expressing tnfa")+ NoLegend()  +
   theme(axis.title.y.left =  element_markdown(size = 14),axis.title.x = element_blank(),plot.margin = margin(1,1,1.5,1, "cm"), plot.title = element_blank(), axis.text.x = element_markdown(angle = 0, hjust = 0.5, size = 14, color = "black",
                                         family = "Arial",
