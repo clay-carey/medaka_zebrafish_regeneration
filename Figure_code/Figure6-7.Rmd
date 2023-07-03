@@ -216,6 +216,9 @@ grid.arrange(p1,p2,p3,p4,ncol = 4, nrow = 1)
 
 ```
 
+
+
+
 Import data from cui et al. adding relevant metadata to each sample
 ```{r}
 
@@ -277,13 +280,17 @@ DimPlot(p4.combined, group.by = 'orig.ident')
 DimPlot(p11.combined, label = TRUE)
 DimPlot(p11.combined, group.by = 'orig.ident')
 
+
+
 ```
 
+Now we write a function to find all differentially expressed genes at 3 dpi in all species cardiomyocytes 
 ```{r}
-
+##subset the original integrated myocardium object by species.
 zf_myo <- subset(myocardium, subset = species == 'zebrafish')
 md_myo <- subset(myocardium, subset = species == 'medaka')
 
+##Function takes seurat object, sets the identity class using the idents argument, and compares the specified idents in cells1 and cells2 for DEG analysis using seurat default method
 dpi_upreg <- function(so, idents, cells1, cells2){
   Idents(so) <- idents
   DefaultAssay(so) <- "RNA"
@@ -299,77 +306,59 @@ p11_3dpi_markers <- dpi_upreg(p11.combined, 'orig.ident', 'p11.3dpi','p11.sham')
 
 ```
 
+Now we determine which genes overlap between species and create venn diagrams showing overlap between zebrafish and medaka and p4 and p11 mice. First standardizing gene names and removing mitochondrial genes. 
 ```{r}
 
-
+##Filter DEG lists to include only upregulated genes with an adjusted pval < 0.01
 zf_3dpi_up <- filter(zf_3dpi_markers, avg_log2FC > 0 & p_val_adj < 0.01 )
-zf_3dpi_down <- filter(zf_3dpi_markers, avg_log2FC < 0 & p_val_adj < 0.01 )
-
 md_3dpi_up <- filter(md_3dpi_markers, avg_log2FC > 0 & p_val_adj < 0.01  )
-md_3dpi_down <- filter(md_3dpi_markers, avg_log2FC < 0 & p_val_adj < 0.01 )
-
 p4_3dpi_up <- filter(p4_3dpi_markers, avg_log2FC > 0 & p_val_adj < 0.01 )
-p4_3dpi_down <- filter(p4_3dpi_markers, avg_log2FC < 0 & p_val_adj < 0.01  )
-
 p11_3dpi_up <- filter(p11_3dpi_markers, avg_log2FC > 0 & p_val_adj < 0.01 ) 
-p11_3dpi_down <- filter(p11_3dpi_markers, avg_log2FC < 0 & p_val_adj < 0.01  )
 
-
+##retrieve vector of 3dpi upregulated genes for each species. 
 zf_3dpi_up_genes <- rownames(zf_3dpi_up)
-zf_3dpi_down_genes <- rownames(zf_3dpi_down)
 md_3dpi_up_genes <- rownames(md_3dpi_up)
-md_3dpi_down_genes <- rownames(md_3dpi_down)
 p4_3dpi_up_genes <- rownames(p4_3dpi_up)
-p4_3dpi_down_genes <- rownames(p4_3dpi_down)
 p11_3dpi_up_genes <- rownames(p11_3dpi_up)
-p11_3dpi_down_genes <- rownames(p11_3dpi_down)
 
+##This function takes zebrafish gene names and converts them to the mouse gene name when one2one orthology is supported, returning a vector of corrected gene names. 
 convert_genes_zf <- function(X){
   zf_2_mus <- read.delim(file = "/Users/claytoncarey/Downloads/zf2mus.txt")
-
-zf_2_mus <- mutate(zf_2_mus, zf_conv = case_when(
-  Mouse.homology.type == 'ortholog_one2one' ~ Mouse.gene.name,
+  zf_2_mus <- mutate(zf_2_mus, zf_conv = case_when(
+  Mouse.homology.type == 'ortholog_one2one'  ~ Mouse.gene.name,
   TRUE ~ 'no_ortho' 
-))
-
-zf_2_mus1to1 <- filter(zf_2_mus, zf_conv != 'no_ortho')
-
-pos <- match(X, zf_2_mus1to1$Gene.name)
-values <- zf_2_mus1to1$Mouse.gene.name[pos]
-values <- values[!is.na(values)]
-values
+  ))
+  zf_2_mus1to1 <- filter(zf_2_mus, zf_conv != 'no_ortho')
+  pos <- match(X, zf_2_mus1to1$Gene.name)
+  values <- zf_2_mus1to1$Mouse.gene.name[pos]
+  values <- values[!is.na(values)]
+  values
 
 }
 
+##medaka function first converst medaka genes to zebrafish, then to mouse where there is one2one orthology
 convert_genes_md <- function(X){
   #import zf2md dictionary
   zf2md <- read.csv(file = "/Users/claytoncarey/Documents/Seurat/zf.cm.markers/zf2md.csv")
   #filter to only include 1to1 orthologs
-  zf2md_filtered <- filter(zf2md, type == 'ortholog_one2one' & score == 1)
+  zf2md_filtered <- filter(zf2md, type == 'ortholog_one2one')
   #I need to take my vector of medaka genes and replace the medaka gene names with the zebrafish names, given an orthology score >1 
   md_pos <- match(X, zf2md_filtered$md_name)
   md_values <- zf2md_filtered$zf_name[md_pos]
   md_values <- md_values[!is.na(md_values)]
-
-
   zf_2_mus <- read.delim(file = "/Users/claytoncarey/Downloads/zf2mus.txt")
-
-zf_2_mus <- mutate(zf_2_mus, zf_conv = case_when(
+  zf_2_mus <- mutate(zf_2_mus, zf_conv = case_when(
   Mouse.homology.type == 'ortholog_one2one' ~ Mouse.gene.name,
   TRUE ~ 'no_ortho' 
-))
-
-zf_2_mus1to1 <- filter(zf_2_mus, zf_conv != 'no_ortho')
-
-pos <- match(md_values, zf_2_mus1to1$Gene.name)
-values <- zf_2_mus1to1$Mouse.gene.name[pos]
-values <- values[!is.na(values)]
-
-
-return(values)
-
+  ))
+  zf_2_mus1to1 <- filter(zf_2_mus, zf_conv != 'no_ortho')
+  pos <- match(md_values, zf_2_mus1to1$Gene.name)
+  values <- zf_2_mus1to1$Mouse.gene.name[pos]
+  values <- values[!is.na(values)]
+  return(values)
 }
 
+##removes genes from gene list that do not share one to one orthology 
 remove_no_orthol <- function(x){
 zf_2_mus <- read.delim(file = "/Users/claytoncarey/Downloads/zf2mus.txt")
 zf_2_mus <- filter(zf_2_mus, Mouse.homology.type == 'ortholog_one2one')
@@ -379,8 +368,10 @@ values <- values[!is.na(values)]
 return(values)
 }
 
+##Function removes mitochondrial genes from upregulated gene lists 
 remove_mt <- function(X) { 
    X <- gsub("^mt-.*$", "", X)
+   X <- gsub("^MT-.*$", "", X)
    X <- X[X != ""] 
    return(X)
   }
@@ -389,15 +380,10 @@ zf_3dpi_up_conv <- convert_genes_zf(zf_3dpi_up_genes)
 zf_3dpi_up_conv <- remove_mt(zf_3dpi_up_conv)
 zf_3dpi_up_conv <- remove_no_orthol(zf_3dpi_up_conv)
 
-zf_3dpi_down_conv <- convert_genes_zf(zf_3dpi_down_genes)
-zf_3dpi_down_conv <- remove_mt(zf_3dpi_down_conv)
-
 md_3dpi_up_conv <- convert_genes_md(md_3dpi_up_genes)
 md_3dpi_up_conv <- remove_mt(md_3dpi_up_conv)
 md_3dpi_up_conv <- remove_no_orthol(md_3dpi_up_conv)
 
-md_3dpi_down_conv <- convert_genes_md(md_3dpi_down_genes)
-md_3dpi_down_conv <- remove_mt(md_3dpi_down_conv)
 
 p4_3dpi_up_genes <- remove_mt(p4_3dpi_up_genes)
 p4_3dpi_up_genes <- remove_no_orthol(p4_3dpi_up_genes)
@@ -410,7 +396,6 @@ md_up_list <- list( Mouse_p4 = p4_3dpi_up_genes, Medaka = md_3dpi_up_conv, Mouse
 all_up_list <- list( p4 = p4_3dpi_up_genes, zebrafish = zf_3dpi_up_conv,medaka = md_3dpi_up_conv, p11 = p11_3dpi_up_genes)
 
 
-
 p2 <- ggVennDiagram(zf_up_list, label = "count", edge_lty = 0) + scale_fill_viridis(option = 'plasma', limits = c(0,50))
 
 p1 <- ggVennDiagram(md_up_list, label = "count", edge_lty = 0) + scale_fill_viridis(option = 'plasma', limits = c(0,50))
@@ -420,7 +405,7 @@ grid.arrange(p2,p1, ncol = 1, nrow = 2)
 ```
 
 
-
+Merge all objects to simplify visualizing gene expression
 ```{r}
 p4.combined@meta.data$group <- p4.combined@meta.data$orig.ident
 p11.combined@meta.data$group <- p11.combined@meta.data$orig.ident
@@ -430,6 +415,7 @@ all.merge <- subset(all.merge, subset = injury != "14dpi")
 head(all.merge)
 ```
 
+Create vln plots for 9 genes with cardioprotective properties in CMs. 
 ```{r}
 vln_3dpi <- c("#B3BBFF","#A0F8FF", "#FF9E8A" ,"#FFE8C0")
 ms_color <- c("#f799d7", "#f7baf7", "#a2f1c7", "#a9f9ec")
@@ -437,13 +423,14 @@ ms_color <- c("#f799d7", "#f7baf7", "#a2f1c7", "#a9f9ec")
 Idents(all.merge) <- 'group'
 DefaultAssay(all.merge) <- "RNA"
 
+v1 <- VlnPlot(all.merge, features = c('vcp','clic4','tmod1','hspb1','ldha','slmapa','cdh13','sdha','sgcd'), pt.size = 0, idents = c("zebrafish_uninjured","medaka_3dpi","medaka_uninjured","zebrafish_3dpi"), stack = TRUE, flip = TRUE) +NoLegend()
 
-p1 <- Stacked_VlnPlot(all.merge, features = c ('vcp','clic4','tmod1','hspb1','ldha','slmapa','cdh13','sdha','sgcd'),idents = c("zebrafish_uninjured","medaka_3dpi","medaka_uninjured","zebrafish_3dpi"), colors_use = vln_3dpi,  x_lab_rotate = TRUE)
+v2 <- VlnPlot(all.merge, features = c('Vcp',"Clic4","Tmod1","Hspb1","Ldha","Slmap","Cdh13","Sdha","Sgcd"), pt.size = 0, idents = c("p4.sham","p4.3dpi","p11.sham","p11.3dpi"), stack = TRUE, flip = TRUE) +NoLegend()
 
-p2 <- Stacked_VlnPlot(all.merge, features = c('Vcp',"Clic4","Tmod1","Hspb1","Ldha","Slmap","Cdh13","Sdha","Sgcd"), pt.size = 0, idents = c("p4.sham","p4.3dpi","p11.sham","p11.3dpi"), colors_use = ms_color, x_lab_rotate = TRUE)
+Stacked_VlnPlot(all.merge, features = c ('vcp','clic4','tmod1','hspb1','ldha','slmapa','cdh13','sdha','sgcd'),idents = c("zebrafish_uninjured","medaka_3dpi","medaka_uninjured","zebrafish_3dpi"), colors_use = vln_3dpi,  x_lab_rotate = TRUE)
 
-p1
-p2
+Stacked_VlnPlot(all.merge, features = c('Vcp',"Clic4","Tmod1","Hspb1","Ldha","Slmap","Cdh13","Sdha","Sgcd"), pt.size = 0, idents = c("p4.sham","p4.3dpi","p11.sham","p11.3dpi"), colors_use = ms_color, x_lab_rotate = TRUE)
+
 
 ```
 
