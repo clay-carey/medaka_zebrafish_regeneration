@@ -1,10 +1,10 @@
 ---
 title: "Myocardium analysis - fig 6/7"
 author: "Clay Carey"
-date: "2023-06-14"
 output: html_document
 ---
 
+Load required packages and the processed seurat object for the whole dataset
 ```{r}
 library(ggplot2)
 library(Seurat)
@@ -16,12 +16,12 @@ library(viridis)
 library(scCustomize)
 library(ggVennDiagram)
 library(Vennerable)
-heart_filtered <- readRDS(file = "/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/heart_filtered.rds")
+heart_filtered <- readRDS(file = "heart_filtered.rds")
 ```
-
+Subset cell clusters previously identified as cardiomyocyte cells and recluster cells.
 ```{r}
 vln_color <- c("#55DFD4","#69D5F8","#5192DC","#F7BC6D","#FCDA61","#FA8961")
-
+Idents(heart_filtered) <- "seurat_clusters"
 myocardium <- subset(heart_filtered, idents = c(2,3,7,8,14,19))
 DefaultAssay(myocardium) <- "integrated"
 myocardium <- ScaleData(myocardium, assay = 'integrated' )
@@ -31,11 +31,13 @@ myocardium <- FindNeighbors(myocardium, dims = 1:30, reduction = 'pca', n.tree =
 myocardium <- FindClusters(myocardium, resolution = 0.2, algorithm = 2)
 DimPlot(myocardium, label = TRUE, pt.size = 1, label.size = 6) +NoLegend() +NoAxes()
 DimPlot(myocardium, group.by = 'group', cols = vln_color)
-FeaturePlot_scCustom(myocardium, features = 'fli1a')
+
+DefaultAssay(myocardium) <- "RNA"
+FeaturePlot_scCustom(myocardium, features = c('fli1a',"myl7"))
 
 ```
 
-remove cluster 4 doublets 
+Top marker genes for cluster 4 are a mix of endothelial cell markers/cardiomyocytes. These are likely doublets and we will remove and re-cluster
 ```{r}
 myo_colors <- c("#fdbf6f", "#b2df8a", "#FFA07A","#fb9a99")
 myocardium <- subset(myocardium, idents = 4, invert = TRUE)
@@ -49,6 +51,7 @@ DimPlot(myocardium, label = TRUE, pt.size = 1, label.size = 6, cols = myo_colors
 DimPlot(myocardium, group.by = 'group', cols = vln_color)
 ```
 
+Classify cell clusters based on marker gene expression, Giving a name to each cluster as either cortical (cCM) or trabecular (tCM) and a higher level assignment as cortical or trabecular
 ```{r}
 myocardium@meta.data <- mutate(myocardium@meta.data, cell_type = case_when(
   seurat_clusters == 0 ~ "tCM1",
@@ -65,6 +68,7 @@ myocardium@meta.data <- mutate(myocardium@meta.data, layer = case_when(
 ))
 ```
 
+Create gene expression dotplot of cardiomyocyte markers for different known CM subsets. 
 ```{r}
 my_levels <- c("tCM1","tCM2","tCM3","cCM1")
 myocardium@meta.data$cell_type <- factor(x = myocardium@meta.data$cell_type, levels = my_levels)
@@ -77,11 +81,15 @@ myo_dot_markers <- c('myl7','actc1a',"tbx5a","gata6","mef2d","acta2","actn1","he
   guides(size=guide_legend(override.aes=list(shape=21, colour="black", fill="white"))) + theme(axis.text.x =    element_text(angle =45,hjust = 1)) + theme(legend.title = element_text( size = 8))
 ```
 
+Use dittoseq package to create boxplot of proportion of cells in trabecular or cortical CM clusters in each species. 
 ```{r}
 dittoFreqPlot(myocardium, "layer", sample.by = 'sample', group.by = 'species' ,color.panel = c("#D39234","#61A2DE"), boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Proportion of cardiomyocytes")  + scale_y_continuous(n.breaks = 20)  
 ```
 
+
+To ID primordial CMs, we take 2 samples- zf_uninj_1 and zf_uninj_2, merge and cluster. Then we will subset CMs only. 
 ```{r}
+#data pre-processing function
 process_seurat <- function(data, mtcutoff = 20){
   so.data <- Read10X(data.dir = data)
   so <- CreateSeuratObject(counts = so.data, min.cells = 3)
@@ -90,26 +98,33 @@ process_seurat <- function(data, mtcutoff = 20){
   so <- NormalizeData(so)
   return(so)
 }
-
-zf_uninj1 <- process_seurat(data = '/Users/claytoncarey/Documents/Seurat/19226X1_bc', mtcutoff = 30)
+##Run processing function on zf_uninj_1 and zf_uninj_2 samples, can be downloaded on github page.
+zf_uninj1 <- process_seurat(data = "/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/Heart_cellranger_outs/zf_uninj_3", mtcutoff = 30)
 zf_uninj1@meta.data$sample <- "zf1"
-zf_uninj2 <- process_seurat(data = '/Users/claytoncarey/Documents/Seurat/19226X2_bc', mtcutoff = 30)
+zf_uninj2 <- process_seurat(data = '/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/Heart_cellranger_outs/zf_uninj_4', mtcutoff = 30)
 zf_uninj2@meta.data$sample <- "zf2"
 
+## Merge 2 datasets, and run standard workflow for processing seurat object, clustering cells. 
 zf_uninj <- merge(zf_uninj1, y = zf_uninj2)
 
 zf_uninj <- FindVariableFeatures(zf_uninj, selection.method = "vst", nfeatures = 2000)
 all.genes <- rownames(zf_uninj)
-zf_uninj <- ScaleData(zf_uninj, features = all.genes, vars.to.regress = 'percent.mt')
+zf_uninj <- ScaleData(zf_uninj, features = all.genes)
 zf_uninj <- RunPCA(zf_uninj, features = VariableFeatures(object = zf_uninj))
 zf_uninj <- FindNeighbors(zf_uninj, dims = 1:20)
 zf_uninj <- FindClusters(zf_uninj, resolution = 0.5)
 zf_uninj <- RunUMAP(zf_uninj, dims = 1:20)
-DimPlot(zf_uninj)
+
+DimPlot(zf_uninj, label = TRUE)
+## ID CM clusters with myl7 expression 
+
+FeaturePlot_scCustom(zf_uninj, features = c('myl7',"fli1a"))
 ```
 
+Now subset CM clusters and integrate the data to remove batch effects, reclustering the CMs and look for primordial markers. 
 ```{r}
-zf_uninj_myo <- subset(zf_uninj, idents = c(1,3,5,9))
+
+zf_uninj_myo <- subset(zf_uninj, idents = c(1,4,5,11))
 
 zf.myo.list <- SplitObject(zf_uninj_myo, split.by = 'sample')
 
@@ -140,10 +155,11 @@ FeaturePlot_scCustom(zf.uninj.myo.int, features = c('acta2','hey2','cxcl14','emi
 
 ```
 
+Now we apply the same workflow to medaka uninjured samples. 
 ```{r}
-md_uninj1 <- process_seurat('/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_3', 30)
+md_uninj1 <- process_seurat('/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/Heart_cellranger_outs/md_uninj_3', 30)
 md_uninj1@meta.data$sample <- "md1"
-md_uninj2 <- process_seurat(data = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_4', mtcutoff = 30)
+md_uninj2 <- process_seurat(data = '/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/Heart_cellranger_outs/md_uninj_4', mtcutoff = 30)
 md_uninj2@meta.data$sample <- "md2"
 
 md_uninj <- merge(md_uninj1, y = md_uninj2)
@@ -158,6 +174,7 @@ md_uninj <- RunUMAP(md_uninj, dims = 1:20)
 DimPlot(md_uninj, reduction = "umap", label = TRUE)
 ```
 
+Again, subsetting CMs, integrating data and reclustering
 ```{r}
 md_uninj_myo <- subset(md_uninj, idents = c(2,6,15,16,18))
 md.myo.list <- SplitObject(md_uninj_myo, split.by = 'sample')
@@ -186,6 +203,7 @@ DimPlot(md.uninj.myo.int)
 
 ```
 
+Set color palette and plot UMAP of zebrafish and medaka CMs 
 ```{r}
 zf_cols <- c("#70FFE8", "#77ABE6", "#AA93FA", "#DB7BE3","#FC5BE3")
 md_cols <- c("#FF5969","#E69063","#FAD27D","#E3DC66","#F6FA50")
@@ -194,6 +212,7 @@ DimPlot(md.uninj.myo.int, cols = md_cols, label = TRUE, label.size = 6) + NoLege
 
 ```
 
+Create featureplots for all zebrafish and medaka shared primordial layer markers 
 ```{r}
 DefaultAssay(zf.uninj.myo.int) <- "RNA"
 DefaultAssay(md.uninj.myo.int) <- "RNA"
@@ -217,9 +236,9 @@ grid.arrange(p1,p2,p3,p4,ncol = 4, nrow = 1)
 ```
 
 
+FIGURE 7 analysis
 
-
-Import data from cui et al. adding relevant metadata to each sample
+Import data from cui et al. adding relevant metadata to each sample. Data can be accessed on GEO at https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE130699 
 ```{r}
 
 
@@ -306,7 +325,9 @@ p11_3dpi_markers <- dpi_upreg(p11.combined, 'orig.ident', 'p11.3dpi','p11.sham')
 
 ```
 
-Now we determine which genes overlap between species and create venn diagrams showing overlap between zebrafish and medaka and p4 and p11 mice. First standardizing gene names and removing mitochondrial genes. 
+Now we determine which genes overlap between species and create venn diagrams showing overlap between zebrafish and medaka and p4 and p11 mice. First standardizing gene names and removing mitochondrial genes, excluding all non-orthologous genes. 
+
+Orthology assignments are based on ensembl annotations and were downloaded from biomart. The biomart exports are available on the github page for this project (zf2md.csv = all zebrafish gene names matched to all medaka gene names, with orthology assessments and scores) (zf2mus.tsv = all zebrafish gene names matched to all mouse gene names, with orthology assessments and scores)
 ```{r}
 
 ##Filter DEG lists to include only upregulated genes with an adjusted pval < 0.01
@@ -323,7 +344,7 @@ p11_3dpi_up_genes <- rownames(p11_3dpi_up)
 
 ##This function takes zebrafish gene names and converts them to the mouse gene name when one2one orthology is supported, returning a vector of corrected gene names. 
 convert_genes_zf <- function(X){
-  zf_2_mus <- read.delim(file = "/Users/claytoncarey/Downloads/zf2mus.txt")
+  zf_2_mus <- read.delim(file = "/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/zf2mus.txt", sep = "\t")
   zf_2_mus <- mutate(zf_2_mus, zf_conv = case_when(
   Mouse.homology.type == 'ortholog_one2one'  ~ Mouse.gene.name,
   TRUE ~ 'no_ortho' 
@@ -339,14 +360,14 @@ convert_genes_zf <- function(X){
 ##medaka function first converst medaka genes to zebrafish, then to mouse where there is one2one orthology
 convert_genes_md <- function(X){
   #import zf2md dictionary
-  zf2md <- read.csv(file = "/Users/claytoncarey/Documents/Seurat/zf.cm.markers/zf2md.csv")
+  zf2md <- read.csv(file = "/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/zf2md.csv")
   #filter to only include 1to1 orthologs
   zf2md_filtered <- filter(zf2md, type == 'ortholog_one2one')
   #I need to take my vector of medaka genes and replace the medaka gene names with the zebrafish names, given an orthology score >1 
   md_pos <- match(X, zf2md_filtered$md_name)
   md_values <- zf2md_filtered$zf_name[md_pos]
   md_values <- md_values[!is.na(md_values)]
-  zf_2_mus <- read.delim(file = "/Users/claytoncarey/Downloads/zf2mus.txt")
+  zf_2_mus <- read.delim(file = "/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/zf2mus.txt", sep = "\t")
   zf_2_mus <- mutate(zf_2_mus, zf_conv = case_when(
   Mouse.homology.type == 'ortholog_one2one' ~ Mouse.gene.name,
   TRUE ~ 'no_ortho' 
@@ -360,7 +381,7 @@ convert_genes_md <- function(X){
 
 ##removes genes from gene list that do not share one to one orthology 
 remove_no_orthol <- function(x){
-zf_2_mus <- read.delim(file = "/Users/claytoncarey/Downloads/zf2mus.txt")
+zf_2_mus <- read.delim(file = "/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/zf2mus.txt")
 zf_2_mus <- filter(zf_2_mus, Mouse.homology.type == 'ortholog_one2one')
 pos <- match(x, zf_2_mus$Mouse.gene.name)
 values <- zf_2_mus$Mouse.gene.name[pos]
@@ -376,6 +397,7 @@ remove_mt <- function(X) {
    return(X)
   }
 
+#Apply functions to each gene list
 zf_3dpi_up_conv <- convert_genes_zf(zf_3dpi_up_genes)
 zf_3dpi_up_conv <- remove_mt(zf_3dpi_up_conv)
 zf_3dpi_up_conv <- remove_no_orthol(zf_3dpi_up_conv)
