@@ -1,7 +1,6 @@
 ---
-title: "Data processing"
+title: "Data processing and integration"
 author: "Clay Carey"
-date: "2023-01-31"
 output: pdf_document
 ---
 
@@ -22,33 +21,31 @@ library(gridExtra)
 Import gene expression matricies produced by cellranger for each samples. You will need to replace file paths with your own to reproduce results. See github page for data download instructions. 
 
 ```{r}
-zf.uninj.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_1')
-zf.uninj.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_2')
-zf.uninj.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_3')
-zf.uninj.4.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_uninj_4')
+zf.uninj.1.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_uninj_1')
+zf.uninj.2.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_uninj_2')
+zf.uninj.3.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_uninj_3')
+zf.uninj.4.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_uninj_4')
 
-md.uninj.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_1')
-md.uninj.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_2')
-md.uninj.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_3')
-md.uninj.4.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_uninj_4')
+md.uninj.1.data <- Read10X(data.dir = 'Heart_cellranger_outs/md_uninj_1')
+md.uninj.2.data <- Read10X(data.dir = 'Heart_cellranger_outs/md_uninj_2')
+md.uninj.3.data <- Read10X(data.dir = 'Heart_cellranger_outs/md_uninj_3')
+md.uninj.4.data <- Read10X(data.dir = 'Heart_cellranger_outs/md_uninj_4')
+zf.3dpi.1.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_3dpi_1')
+zf.3dpi.2.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_3dpi_2')
+zf.3dpi.3.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_3dpi_3')
 
-zf.3dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_3dpi_1')
-zf.3dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_3dpi_2')
-zf.3dpi.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_3dpi_3')
+md.3dpi.1.data <- Read10X(data.dir = 'Heart_cellranger_outs/md_3dpi_1')
+md.3dpi.2.data <- Read10X(data.dir = 'Heart_cellranger_outs/md_3dpi_2')
+md.3dpi.3.data <- Read10X(data.dir = 'Heart_cellranger_outs/md_3dpi_3')
 
-md.3dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_3dpi_1')
-md.3dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_3dpi_2')
-md.3dpi.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_3dpi_3')
-
-zf.14dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_1')
-zf.14dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_2')
-zf.14dpi.3.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_3')
-zf.14dpi.4.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_4')
-zf.14dpi.5.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_5')
-zf.14dpi.6.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/zf_14dpi_6')
-
-md.14dpi.1.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_14dpi_1')
-md.14dpi.2.data <- Read10X(data.dir = '/Users/claytoncarey/Documents/Seurat/Heart_cellranger_outs/md_14dpi_2')
+zf.14dpi.1.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_14dpi_1')
+zf.14dpi.2.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_14dpi_2')
+zf.14dpi.3.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_14dpi_3')
+zf.14dpi.4.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_14dpi_4')
+zf.14dpi.5.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_14dpi_5')
+zf.14dpi.6.data <- Read10X(data.dir = 'Heart_cellranger_outs/zf_14dpi_6')
+md.14dpi.1.data <- Read10X(data.dir = 'Heart_cellranger_outs/md_14dpi_1')
+md.14dpi.2.data <- Read10X(data.dir = 'Heart_cellranger_outs/md_14dpi_2')
 ```
 
 For downstream integration and gene expression analysis, it is important to have consistent naming for genes across both species (as much as possible). We will rely on ensembl orthology assessments to rename medaka genes to the zebrafish gene name (when not already named identically). 
@@ -291,6 +288,7 @@ saveRDS(obj.list, file = 'heart_obj.rds')
 
 Integration of the data is highly computationally intensive. We will Use 
 The following code was executed on the utah CHPC cluster to normalize and integrate the datasets quickly. 
+The FindIntegrationAnchors defaults to CCA method for integrating cells across samples. 
 ```{r}
 library(Seurat)
 
@@ -316,6 +314,7 @@ heart_integrated <- readRDS(file = 'heart_integrated.rds')
 heart_integrated
 ```
 
+From the integrated assay we scale and cluster cells using standard workflow. 
 ```{r}
 DefaultAssay(heart_integrated) <- "integrated"
 heart_integrated <- ScaleData(heart_integrated)
@@ -616,6 +615,6 @@ grid.arrange(p1,p2,ncol=1,nrow=2)
 
 Save Processed seurat as RDS file. 
 ```{r}
-saveRDS(heart_filtered, file = '/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/Final_code/heart_filtered.rds')
+saveRDS(heart_filtered, file = 'heart_filtered.rds')
 ```
 
