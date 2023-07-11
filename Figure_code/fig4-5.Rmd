@@ -1,22 +1,20 @@
 ---
-title: "Untitled"
+title: "Figure 4-5 analysis"
 author: "Clay Carey"
-date: "2023-06-07"
 output: html_document
 ---
-
+Load required packages and load the filtered whole-ventricle dataset.
 ```{r}
 library(ggplot2)
 library(Seurat)
 library(dittoSeq)
-library(Nebulosa)
 library(dplyr)
 library(gridExtra)
 library(viridis)
 library(scCustomize)
 library(grid)
 library(ggtext)
-heart_filtered <- readRDS(file = '/Users/claytoncarey/Documents/Seurat/medaka_zebrafish_regeneration/heart_filtered.rds')
+heart_filtered <- readRDS(file = "heart_filtered.rds")
 ```
 
 ```{r}
@@ -24,10 +22,12 @@ Idents(heart_filtered) <- 'seurat_clusters'
 DimPlot(heart_filtered, label = TRUE)
 ```
 
+Subset cell clusters previously ID'd as endothelial/mural cells
 ```{r}
 endocardium <- subset(heart_filtered, idents = c(0,1,9,12,15,17,18,20))
 ```
 
+Re cluster endothelial cells
 ```{r}
 palette <- c("#a6cee3", "#fdbf6f", "#b2df8a", "#fb9a99", "#cab2d6", "#bcbddc","#ff9896", "#e377c2","#17becf", "#c6dcbd" , "#9edae5", "#8c96c6")
 
@@ -38,13 +38,19 @@ endocardium <- RunUMAP(endocardium, dims = 1:28)
 endocardium <- FindNeighbors(endocardium, dims = 1:20, reduction = 'pca', n.tree = 500, l2.norm = TRUE )
 endocardium <- FindClusters(endocardium, resolution = .2)
 DimPlot(endocardium, label = TRUE, cols = palette) +NoLegend() + NoAxes()
-DimPlot(endocardium, split.by = 'species')
-DimPlot(endocardium, group.by = 'group')
+
 ```
 
-Remove cluster 10, which is contaminating T cells 
 ```{r}
+DefaultAssay(endocardium) <- "RNA"
+FeaturePlot_scCustom(endocardium, features = c('runx3',"zap70","lck","fli1a","kdrl"))
+```
+
+Remove cluster 10, which is contaminating T cells / doublets
+```{r}
+
 Idents(endocardium) <- "seurat_clusters"
+
 endocardium <- subset(endocardium, idents = 10, invert = TRUE)
 ```
 
@@ -59,6 +65,7 @@ endocardium <- FindClusters(endocardium, resolution = .2)
 DimPlot(endocardium, label = TRUE, cols = palette) +NoLegend() + NoAxes()
 ```
 
+Add new metadata naming cell clusters and cell types. 
 ```{r}
 endocardium@meta.data <- mutate(endocardium@meta.data, endo_cell_type = case_when(
   seurat_clusters == 0 ~ "eEC1",
@@ -165,11 +172,12 @@ Idents(epicardium) <- "epicardium_type_class"
 epi_dot_markers <- c('fli1a','kdrl','tcf21','tbx18','twist1b','postnb','col12a1b','cldnc','jam2b')
  DotPlot(epicardium, features = epi_dot_markers, scale = TRUE) +
   geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.5) +
-  scale_colour_viridis(option="magma") +
+  scale_colour_viridis(option="plasma") +
   guides(size=guide_legend(override.aes=list(shape=21, colour="black", fill="white"))) + theme(axis.text.x = element_text(angle =45,hjust = 1)) + theme(legend.title = element_text( size = 8))+ ylab(element_blank()) + xlab(element_blank())
 
  
 ```
+
 
 
 
@@ -248,6 +256,26 @@ p2 + p4 + p6
 ```
 
 ```{r}
+p1 <- dittoFreqPlot(epicardium, "epicardium_class", sample.by = 'sample', group.by = 'group' ,vars.use = 'zEP',color.panel = vln_color_pastel, boxplot.color = '#4F4F4F', jitter.size = 1.5) + NoLegend() +  theme(axis.title.x=element_blank()) + theme(plot.title = element_blank()) + ylab("Proportion of Epicardial Cells") + theme(plot.title = element_text(size=22)) +
+  NoLegend() +
+  theme(axis.title.y.left =  element_markdown(size = 14),  plot.margin = margin(1,1,1.5,1.2, "cm"),axis.title.x = element_blank(), plot.title = element_blank(), axis.text.x = element_markdown(angle = 0, hjust = 0.5, size = 14, color = "black",
+                                        family = "Arial",
+                                        align_widths = TRUE,
+                                        padding = unit(c(2, 2), "pt"),
+                                        linewidth = 0.5,
+                                        linetype = "solid",
+                                        box.colour = "black",
+                                        fill  = vln_color_pastel)) +
+  scale_x_discrete(labels = c("Uninj", "3", "14", "Uninj", "3", "14"))+
+  geom_vline(xintercept = 3.5, linetype = "dashed", color = "darkgray") 
+
+p2 <- p1 + annotation_custom(zf_gorb) + annotation_custom(md_gorb) + annotation_custom(zf_line) + annotation_custom(md_line) + coord_cartesian(clip = 'off')
+
+p2
+```
+
+
+```{r}
 Idents(endocardium) <- "endo_cell_type"
 my_levels <- c("eEC1","eEC2","eEC3","eEC4","eEC5","cEC","lEC","fEC1",'fEC2',"fEC3","Mural")
 endocardium@meta.data$endo_cell_type <- factor(x = endocardium@meta.data$endo_cell_type, levels = my_levels)
@@ -273,7 +301,7 @@ DotPlot(epicardium, features = epi_top, scale = TRUE) +
 ```
 
 
-
+Create gene expression featureplots for endothelaial and epicardial cell types for selected fibrosis-related genes 
 ```{r}
 Idents(endocardium) <- "endo_cell_type"
 Idents(epicardium) <- "epicardium_class"
@@ -302,7 +330,7 @@ grid.arrange(p1,p2,p3,p4,p5,p6,f1,f2,f3,f4,f5,f6, ncol = 6, nrow = 2)
 
 #1600w x 800 h
 ```
-
+Perform cell cycle scoring on endothelail cells using seurat and overlay phase labels on UMAP plot
 ```{r}
 
 DefaultAssay(endocardium) <- "RNA"
@@ -312,7 +340,7 @@ endocardium <- CellCycleScoring(endocardium, s.features = s.genes, g2m.features 
 DimPlot(endocardium, group.by = 'Phase') + NoAxes() 
 
 ```
-
+Identify collagens genes expressed in at least 150 epicardial or endothelial cells. Then make dotplot of collagens in both epicardial and endothelial cells. 
 ```{r}
 collagens <- grep("^col\\d+", heart_filtered@assays$RNA@counts@Dimnames[[1]], value = TRUE)
 collagens_expressed <- c()
@@ -320,8 +348,12 @@ for (gene in collagens){
   en_ncells <- sum(GetAssayData(object = endocardium, slot = "data")[gene,]>0)
   ep_ncells <- sum(GetAssayData(object = epicardium, slot = "data")[gene,]>0)
   if(en_ncells > 150 | ep_ncells > 150){collagens_expressed<- c(collagens_expressed, gene)}
-  }
-collagens_expressed
+}
+
+## collagens expressed has some extra collagen binding proteins in it, will remove collagen bp proteins 
+
+collagens_expressed <- setdiff(collagens_expressed, c("col4a3bpa","col4a3bpb"))
+collagens_expressed  
 
 ep_collagen_dp <- DotPlot_scCustom(epicardium, features = collagens_expressed, scale = TRUE, group.by = 'group', flip_axes = TRUE) +
   geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.5) +
@@ -338,6 +370,7 @@ endo_collagen_dp
 #350 x 700
 ```
 
+Identify mmps genes expressed in at least 150 epicardial or endothelial cells. Then make dotplot of mmps in both epicardial and endothelial cells. 
 ```{r}
 mmps <- grep("^mmp\\d+", heart_filtered@assays$RNA@counts@Dimnames[[1]], value = TRUE)
 mmps
@@ -365,6 +398,7 @@ endo_mmps_dp
 
 
 
+Create gene expression featureplots for different pro-regenerative factors in epicardial and endothelial cells   
 
 ```{r}
 Idents(endocardium) <- "endo_cell_type"
@@ -392,6 +426,7 @@ grid.arrange(p1,p2,p3,p4,f1,f2,f3,f4, ncol = 4, nrow = 2)
 
 #1600w x 800 h
 ```
+Create gene expression featureplots for different pro-regenerative factors across the whole dataset.  
 ```{r}
 DefaultAssay(heart_filtered) <- "RNA"
 Idents(heart_filtered) <- "cell_class"
@@ -415,6 +450,7 @@ grid.arrange(p1,p2,p3,p4, ncol = 4, nrow = 1)
 
 ```
 
+Here we make a function that will make vlnplots for two different cell types and two different genes. We use the function to plot expression of pro-regenerative and angiogenic factors in different epicardial and endothelial cell types. 
 ```{r}
 vln_color_pastel <- c("#B3BBFF","#A0F8FF","#8AB9D9","#FF9E8A","#FFE8C0","#FFBFBD")
 
@@ -467,9 +503,10 @@ make_stacked_vln(so = endocardium, gene1 ='apln',gene2 ='cxcr4a', celltype1 = 'c
 ```
 
 
-
+Create violin plots for specific pro-angiogenic factors in the zEP cluster. Define a function that takes a gene name as argument and it will make a vlnplot of for zEP cells only at each timepoint. 
 
 ```{r}
+zf_color_pastel <- c("#B3BBFF","#A0F8FF","#8AB9D9")
 zep_vln <- function(gene){
 VlnPlot(epicardium, features = gene, group.by = 'group', idents = 'zEP', cols = zf_color_pastel, pt.size = 0.0 ) +       NoLegend()  +
       theme(axis.title.y.left =  element_markdown(size = 14),axis.title.x = element_blank(),plot.margin = margin(1,1,1.5,1, "cm"),       plot.title = element_blank(), axis.text.x = element_markdown(angle = 0, hjust = 0.5, size = 14, color = "black",
